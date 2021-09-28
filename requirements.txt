@@ -1,0 +1,10 @@
+matplotlib
+networkx
+pandas
+requests
+typing
+typing-extensions
+
+black
+mypy
+pylint
