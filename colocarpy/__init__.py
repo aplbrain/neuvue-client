@@ -43,9 +43,9 @@ import requests
 
 from . import utils
 from . import version
+from . import Minnie65Validator
 
 __version__ = version.__version__
-
 
 class Colocard:
     """
@@ -63,33 +63,33 @@ class Colocard:
             url (str): The qualified location (including protocol) of the server.
 
         """
+        # TODO: Add google auth layer
+        # config = configparser.ConfigParser()
 
-        config = configparser.ConfigParser()
+        # auth_method = ""
+        # if "username" in kwargs and "password" in kwargs:
+        #     auth_method = "Inline Arguments"
+        #     self._username = kwargs["username"]
+        #     self._password = kwargs["password"]
+        # elif ("COLOCARD_USERNAME" in os.environ) and (
+        #     "COLOCARD_PASSWORD" in os.environ
+        # ):
+        #     auth_method = "Environment Variables"
+        #     self._username = os.environ["COLOCARD_USERNAME"]
+        #     self._password = os.environ["COLOCARD_PASSWORD"]
+        # else:
+        #     try:
+        #         config.read(os.path.expanduser("~/.colocarpy/.colocarpy"))
+        #         auth_method = "Config File"
+        #         self._username = config["CONFIG"]["username"]
+        #         self._password = config["CONFIG"]["password"]
+        #     except:
+        #         raise ValueError("No authentication (username/password) provided.")
 
-        auth_method = ""
-        if "username" in kwargs and "password" in kwargs:
-            auth_method = "Inline Arguments"
-            self._username = kwargs["username"]
-            self._password = kwargs["password"]
-        elif ("COLOCARD_USERNAME" in os.environ) and (
-            "COLOCARD_PASSWORD" in os.environ
-        ):
-            auth_method = "Environment Variables"
-            self._username = os.environ["COLOCARD_USERNAME"]
-            self._password = os.environ["COLOCARD_PASSWORD"]
-        else:
-            try:
-                config.read(os.path.expanduser("~/.colocarpy/.colocarpy"))
-                auth_method = "Config File"
-                self._username = config["CONFIG"]["username"]
-                self._password = config["CONFIG"]["password"]
-            except:
-                raise ValueError("No authentication (username/password) provided.")
-
-        try:
-            self._token = self._get_authorization_token()["access_token"]
-        except KeyError:
-            raise ValueError(f"Authorization failed with method [{auth_method}].")
+        # try:
+        #     self._token = self._get_authorization_token()["access_token"]
+        # except KeyError:
+        #     raise ValueError(f"Authorization failed with method [{auth_method}].")
 
         self._url = url.rstrip("/")
         self._custom_headers: dict = {}
@@ -99,28 +99,10 @@ class Colocard:
     @property
     def _headers(self) -> dict:
         headers = {
-            "content-type": "application/json",
-            "authorization": "Bearer {}".format(self._token),
+            "content-type": "application/json"
         }
         headers.update(self._custom_headers)
         return headers
-
-    def _get_authorization_token(self):
-
-        res = requests.post(
-            "https://auth.theboss.io/auth/realms/BOSS/protocol/openid-connect/token",
-            data={
-                "client_id": "endpoint",
-                "username": self._username,
-                "password": self._password,
-                "grant_type": "password",
-            },
-        ).json()
-
-        return res
-
-    def _set_authorization_token(self):
-        self._token = self._get_authorization_token()["access_token"]
 
     def url(self, suffix: str = "") -> str:
         """
@@ -195,9 +177,9 @@ class Colocard:
 
     def _try_request(self, send_req: Callable[[], Any]) -> Any:
         res = send_req()
-        if res.status_code == 401:
-            self._set_authorization_token()
-            res = send_req()
+        # if res.status_code == 401:
+        #     self._set_authorization_token()
+        #     res = send_req()
         return res
 
     def depaginate(
@@ -989,3 +971,148 @@ class Colocard:
             res.submitted = pd.to_datetime(res.submitted, unit="ms")
 
             return res
+
+    """
+    ██████╗  ██████╗ ██╗███╗   ██╗████████╗███████╗
+    ██╔══██╗██╔═══██╗██║████╗  ██║╚══██╔══╝██╔════╝
+    ██████╔╝██║   ██║██║██╔██╗ ██║   ██║   ███████╗
+    ██╔═══╝ ██║   ██║██║██║╚██╗██║   ██║   ╚════██║
+    ██║     ╚██████╔╝██║██║ ╚████║   ██║   ███████║
+    ╚═╝      ╚═════╝ ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝
+    """
+    
+    def get_point(self, point_id: str) -> dict:
+        """
+        Get a single point by its ID.
+
+        Arguments:
+            point_id (str): The ID of the point to retrieve
+        Returns:
+            dict
+
+        """
+        res = self._try_request(
+            lambda: requests.get(
+                self.url(f"/points/{point_id}"),
+                headers=self._headers,
+            )
+        )
+        try:
+            self._raise_for_status(res)
+        except Exception as e:
+            raise RuntimeError(f"Failed to get point {point_id}") from e
+        return res.json()
+
+    def get_points(
+        self,
+        sieve: dict = None,
+        limit: int = None,
+        active_default: bool = True,
+    ):
+        """
+        Get a list of points.
+
+        Arguments:
+            sieve (dict): See sieve documentation.
+            limit (int: None): The maximum number of items to return.
+            active_default (bool: True): If `active` is not a key included in sieve, set it to this
+
+        Returns:
+            pd.DataFrame
+
+        """
+        if sieve is None:
+            sieve = {"active": active_default}
+        if "active" not in sieve:
+            sieve["active"] = active_default
+
+        try:
+            depaginated_points = self.depaginate(
+                "points", sieve, limit=limit
+            )
+        except Exception as e:
+            raise RuntimeError("Failed to get points") from e
+        else:
+            res = pd.DataFrame(depaginated_points)
+
+            # If an empty response, then return an empty dataframe:
+            if len(res) is 0:
+                return pd.DataFrame([], columns=self.dtype_columns("points"))
+
+            res.set_index("_id", inplace=True)
+            res.created = pd.to_datetime(res.created, unit="ms")
+            res.submitted = pd.to_datetime(res.submitted, unit="ms")
+
+            return res
+
+    def post_point(
+        self,
+        coordinate: List[int],
+        author: str,
+        namespace: str,
+        type: str, 
+        resolution: int = 0,
+        metadata: dict = None,
+        validate: bool = True,
+        validator: object = Minnie65Validator
+    ):
+        """
+        Post a new point to the database.
+
+        Arguments:
+            coordinate (List[int])
+            author (str)
+            namespace (str)
+            type (str)
+            resolution (int = 0)
+            metadata (dict = None)
+            validate (bool = True)
+
+        Returns:
+            dict: Point, as inserted
+
+        """
+        if metadata is None:
+            metadata = {}
+
+        if validate:
+            if not isinstance(resolution, int):
+                raise ValueError(f"Resolution [{resolution}] must be an int.")
+
+            if (
+                not isinstance(coordinate, list)
+                or len(coordinate) != 3
+                or not validator.validate_point(coordinate)
+            ):
+                raise ValueError(f"Validation failed for coordinate {coordinate}.")
+
+        point = {
+            "active": True,
+            "coordinate": coordinate,
+            "author": author,
+            "namespace": namespace,
+            "type": type, 
+            "resolution": resolution,
+            "metadata": metadata,
+            "__v": 0,
+        }
+
+        res = self._try_request(
+            lambda: requests.post(
+                self.url("/volumes"), data=json.dumps(point), headers=self._headers
+            )
+        )
+        try:
+            self._raise_for_status(res)
+        except Exception as e:
+            raise RuntimeError("Unable to post volume") from e
+        return res.json()
+
+    """
+    ████████╗ █████╗ ███████╗██╗  ██╗███████╗
+    ╚══██╔══╝██╔══██╗██╔════╝██║ ██╔╝██╔════╝
+       ██║   ███████║███████╗█████╔╝ ███████╗
+       ██║   ██╔══██║╚════██║██╔═██╗ ╚════██║
+       ██║   ██║  ██║███████║██║  ██╗███████║
+       ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝
+    """
