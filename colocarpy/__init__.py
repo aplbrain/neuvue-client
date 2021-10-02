@@ -1116,3 +1116,289 @@ class Colocard:
        ██║   ██║  ██║███████║██║  ██╗███████║
        ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝
     """
+    
+    def get_task(self, task_id: str) -> dict:
+        """
+        Get a single task by its ID.
+
+        Arguments:
+            task_id (str): The ID of the task to retrieve
+
+        Returns:
+            dict
+
+        """
+        res = self._try_request(
+            lambda: requests.get(
+                self.url(f"/tasks/{task_id}"), headers=self._headers
+            )
+        )
+        try:
+            self._raise_for_status(res)
+        except Exception as e:
+            raise RuntimeError(f"Unable to get task {task_id}") from e
+
+        return res.json()
+
+    def get_next_task(self, assignee: str, namespace: str) -> dict:
+        """
+        Get the next task for a user.
+
+        First checks for an open tasks; then sorts by highest to lowest
+        priority of unopened tasks.
+
+        Arguments:
+            assignee (str): The username of the assignee
+            namespace (str): The app/sprint for which the task was assigned
+
+        Returns:
+            dict
+
+        """
+        query = json.dumps(
+            {
+                "assignee": assignee,
+                "namespace": namespace,
+                "active": True,
+                "status": "opened",
+            }
+        )
+        res = self._try_request(
+            lambda: requests.get(
+                self.url(f"/task"), headers=self._headers, params={"q": query}
+            )
+        )
+        try:
+            self._raise_for_status(res)
+        except Exception as e:
+            raise RuntimeError("Unable to get opened tasks") from e
+
+        r = res.json()
+
+        if len(r):
+            return r[0]
+
+        query = json.dumps(
+            {
+                "assignee": assignee,
+                "namespace": namespace,
+                "active": True,
+                "status": "pending",
+            }
+        )
+        res = self._try_request(
+            lambda: requests.get(
+                self.url("/tasks"),
+                headers=self._headers,
+                params={"q": query, "sort": "-priority"},
+            )
+        )
+        try:
+            self._raise_for_status(res)
+        except Exception as e:
+            raise RuntimeError("Unable to get opened tasks") from e
+
+        r = res.json()
+
+        return r[0] if r else None
+
+    def delete_task(self, task_id: str) -> str:
+        """
+        Delete a single task.
+
+        Arguments:
+            task_id (str): The ID of the task to delete
+
+        Returns:
+            dict
+
+        """
+        res = self._try_request(
+            lambda: requests.delete(
+                self.url(f"/task/{task_id}"), headers=self._headers
+            )
+        )
+        try:
+            self._raise_for_status(res)
+        except Exception as e:
+            raise RuntimeError(f"Unable to delete task {task_id}") from e
+        return task_id
+
+    def get_tasks(
+        self, sieve: dict = None, limit: int = None, active_default: bool = True
+    ):
+        """
+        Get a list of tasks.
+
+        Arguments:
+            sieve (dict): See sieve documentation.
+            limit (int: None): The maximum number of items to return.
+            active_default (bool: True): If `active` is not a key included in sieve, set it to this
+
+        Returns:
+            pd.DataFrame
+
+        """
+        if sieve is None:
+            sieve = {"active": active_default}
+        if "active" not in sieve:
+            sieve["active"] = active_default
+        try:
+            depaginated_tasks = self.depaginate("tasks", sieve, limit=limit)
+        except Exception as e:
+            raise RuntimeError("Unable to get tasks") from e
+        else:
+            res = pd.DataFrame(depaginated_tasks)
+
+            # If an empty response, then return an empty dataframe:
+            if len(res) is 0:
+                return pd.DataFrame([], columns=self.dtype_columns("tasks"))
+
+            res.set_index("_id", inplace=True)
+            res.created = pd.to_datetime(res.created, unit="ms")
+            res.opened = pd.to_datetime(res.opened, unit="ms")
+            res.closed = pd.to_datetime(res.closed, unit="ms")
+            return res
+
+    def post_task(
+        self,
+        points: List[str],
+        author: str,
+        assignee: str,
+        priority: int,
+        namespace: str,
+        instructions: dict,
+        metadata: dict = None,
+        validate: bool = True,
+    ):
+        """
+        Post a new task to the database.
+
+        Arguments:
+            points List(str)
+            author (str)
+            assignee (str)
+            priority (int)
+            namespace (str)
+            instructions (dict)
+            metadata (dict = None)
+            validate (bool = True)
+
+        Returns:
+            dict
+
+        """
+        if metadata is None:
+            metadata = {}
+
+        if not isinstance(priority, int):
+            raise ValueError(f"Priority [{priority}] must be an integer.")
+
+        if validate:
+            for point in points:
+                try:
+                    self.get_point(point)
+                except Exception as e:
+                    raise RuntimeError(f"Failed to validate point [{point}]") from e
+
+        task = {
+            "active": True,
+            "closed": None,
+            "metadata": metadata,
+            "opened": None,
+            "status": "pending",
+            "points": points,
+            "priority": priority,
+            "author": author,
+            "assignee": assignee,
+            "namespace": namespace,
+            "instructions": instructions,
+            "created": utils.date_to_ms(),
+            "__v": 0,
+        }
+
+        res = self._try_request(
+            lambda: requests.post(
+                self.url("/tasks"), data=json.dumps(task), headers=self._headers
+            )
+        )
+        try:
+            self._raise_for_status(res)
+        except Exception as e:
+            raise RuntimeError("Failed to post task") from e
+        return res.json()
+
+    def post_task_broadcast(
+        self,
+        points: List[str],
+        author: str,
+        assignees: List[str],
+        priority: int,
+        namespace: str,
+        instructions: dict,
+        metadata: dict = None,
+        validate: bool = True,
+    ):
+        """
+        Post a new task to the database for a given set of assignees.
+
+        Arguments:
+            volume (str)
+            author (str)
+            assignees (List[str])
+            priority (int)
+            namespace (str)
+            instructions (dict)
+            metadata (dict = None)
+            validate (bool = True)
+
+        Returns:
+            List[dict]
+
+        """
+        if metadata is None:
+            metadata = {}
+
+        if not isinstance(priority, int):
+            raise ValueError(f"Priority [{priority}] must be an integer.")
+
+        if validate:
+            for point in points:
+                try:
+                    self.get_point(point)
+                except Exception as e:
+                    raise RuntimeError(f"Failed to validate point [{point}]") from e
+
+        tasks = []
+        created = utils.date_to_ms()
+        for a in assignees:
+            tasks.append(
+                {
+                    "active": True,
+                    "closed": None,
+                    "metadata": metadata,
+                    "opened": None,
+                    "status": "pending",
+                    "points": points,
+                    "priority": priority,
+                    "author": author,
+                    "assignee": a,
+                    "namespace": namespace,
+                    "instructions": instructions,
+                    "created": created,
+                    "__v": 0,
+                }
+            )
+
+        res = self._try_request(
+            lambda: requests.post(
+                self.url("/tasks"),
+                data=json.dumps(tasks),
+                headers=self._headers,
+            )
+        )
+        try:
+            self._raise_for_status(res)
+        except Exception as e:
+            raise RuntimeError("Failed to post task") from e
+        return res.json()
