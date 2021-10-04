@@ -43,7 +43,7 @@ import requests
 
 from . import utils
 from . import version
-from . import Minnie65Validator
+from . import validator
 
 __version__ = version.__version__
 
@@ -173,6 +173,34 @@ class Colocard:
                 "type",
                 "volume",
             ],
+            "point": [
+                "__v",
+                "active",
+                "author",
+                "coordinate",
+                "resolution",
+                "created",
+                "metadata",
+                "namespace",
+                "submitted",
+                "type"
+            ],
+            "task": [
+                "__v",
+                "active",
+                "assignee",
+                "author",
+                "closed",
+                "created",
+                "instructions",
+                "metadata",
+                "namespace",
+                "opened",
+                "priority",
+                "points"
+                "status",
+                "neuron_status"
+            ]
         }[datatype]
 
     def _try_request(self, send_req: Callable[[], Any]) -> Any:
@@ -354,7 +382,7 @@ class Colocard:
         else:
             res = pd.DataFrame(depaginated_graphs)
             # If an empty response, then return an empty dataframe:
-            if len(res) is 0:
+            if len(res) == 0:
                 return pd.DataFrame([], columns=self.dtype_columns("graph"))
 
             res.set_index("_id", inplace=True)
@@ -494,7 +522,7 @@ class Colocard:
             res = pd.DataFrame(depaginated_volumes)
 
             # If an empty response, then return an empty dataframe:
-            if len(res) is 0:
+            if len(res) == 0:
                 return pd.DataFrame([], columns=self.dtype_columns("volume"))
 
             res.set_index("_id", inplace=True)
@@ -716,7 +744,7 @@ class Colocard:
             res = pd.DataFrame(depaginated_questions)
 
             # If an empty response, then return an empty dataframe:
-            if len(res) is 0:
+            if len(res) == 0:
                 return pd.DataFrame([], columns=self.dtype_columns("question"))
 
             res.set_index("_id", inplace=True)
@@ -963,7 +991,7 @@ class Colocard:
             res = pd.DataFrame(depaginated_nodes)
 
             # If an empty response, then return an empty dataframe:
-            if len(res) is 0:
+            if len(res) == 0:
                 return pd.DataFrame([], columns=self.dtype_columns("node"))
 
             res.set_index("_id", inplace=True)
@@ -1036,7 +1064,7 @@ class Colocard:
             res = pd.DataFrame(depaginated_points)
 
             # If an empty response, then return an empty dataframe:
-            if len(res) is 0:
+            if len(res) == 0:
                 return pd.DataFrame([], columns=self.dtype_columns("points"))
 
             res.set_index("_id", inplace=True)
@@ -1054,7 +1082,7 @@ class Colocard:
         resolution: int = 0,
         metadata: dict = None,
         validate: bool = True,
-        validator: object = Minnie65Validator
+        validator: object = validator.Minnie65Validator
     ):
         """
         Post a new point to the database.
@@ -1251,7 +1279,7 @@ class Colocard:
             res = pd.DataFrame(depaginated_tasks)
 
             # If an empty response, then return an empty dataframe:
-            if len(res) is 0:
+            if len(res) == 0:
                 return pd.DataFrame([], columns=self.dtype_columns("tasks"))
 
             res.set_index("_id", inplace=True)
