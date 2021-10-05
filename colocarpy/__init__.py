@@ -1113,7 +1113,7 @@ class Colocard:
                 or not validator.validate_point(coordinate)
             ):
                 raise ValueError(f"Validation failed for coordinate {coordinate}.")
-
+        created = utils.date_to_ms()
         point = {
             "active": True,
             "coordinate": coordinate,
@@ -1122,6 +1122,7 @@ class Colocard:
             "type": type, 
             "resolution": resolution,
             "metadata": metadata,
+            "created": created,
             "__v": 0,
         }
 
