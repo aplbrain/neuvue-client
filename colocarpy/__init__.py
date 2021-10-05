@@ -1127,13 +1127,13 @@ class Colocard:
 
         res = self._try_request(
             lambda: requests.post(
-                self.url("/volumes"), data=json.dumps(point), headers=self._headers
+                self.url("/points"), data=json.dumps(point), headers=self._headers
             )
         )
         try:
             self._raise_for_status(res)
         except Exception as e:
-            raise RuntimeError("Unable to post volume") from e
+            raise RuntimeError("Unable to post point") from e
         return res.json()
 
     """
