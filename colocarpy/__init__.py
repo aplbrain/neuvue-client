@@ -1194,7 +1194,7 @@ class Colocard:
         )
         res = self._try_request(
             lambda: requests.get(
-                self.url(f"/task"), headers=self._headers, params={"q": query}
+                self.url(f"/tasks"), headers=self._headers, params={"q": query}
             )
         )
         try:
