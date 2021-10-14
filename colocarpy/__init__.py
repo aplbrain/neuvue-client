@@ -1169,42 +1169,6 @@ class Colocard:
 
         return res.json()
 
-    def get_current_task(self, assignee: str, namespace: str) -> dict:
-        """
-        Get the current task for a user.
-
-        Checks for an open task;
-
-        Arguments:
-            assignee (str): The username of the assignee
-            namespace (str): The app/sprint for which the task was assigned
-
-        Returns:
-            dict
-
-        """
-        query = json.dumps(
-            {
-                "assignee": assignee,
-                "namespace": namespace,
-                "active": True,
-                "status": "opened",
-            }
-        )
-        res = self._try_request(
-            lambda: requests.get(
-                self.url(f"/tasks"), headers=self._headers, params={"q": query}
-            )
-        )
-        try:
-            self._raise_for_status(res)
-        except Exception as e:
-            raise RuntimeError("Unable to get opened tasks") from e
-
-        r = res.json()
-
-        return r[0] if r else None
-
 
     def get_next_task(self, assignee: str, namespace: str) -> dict:
         """
@@ -1472,22 +1436,4 @@ class Colocard:
         except Exception as e:
             raise RuntimeError("Failed to post task") from e
         return res.json()
-
-    #/tasks/{taskId}/status
-    def set_task_status(self, task_id: str, status: str) -> dict:
-        """
-        Get the current task for a user.
-
-        Sets the status of the task with the matching "task_id" to "status"
-
-        Arguments:
-            task_id (str): The ID of the task to set
-            status (str): The new status of the task
-
-        Returns:
-            dict
-
-        """
-
-        return 
 
