@@ -1436,24 +1436,31 @@ class Colocard:
         task_id = task_json["_id"]
         return self.patch_question(task_id, kwargs)
 
-    def patch_task(
-        self, 
-        task_id: str,
-        **kwargs) -> bool:
+    def patch_task(self, task_id: str, **kwargs):
         """
-        Patch a single question.
-
+        Patch a single task. Iterates through each argument passed through kwargs and patches each.
+        
+        Exmaple:
+        > patch_task(
+            task_id, 
+            instructions = {"prompt": 'do a good job'}, 
+            status='pending', 
+            priority='100'
+        )
+        
         Arguments:
-            question_id (str): The ID of the question to delete
-            kwargs (dict or str or int): The fields to modify (all kwargs must be valid args from https://github.com/aplbrain/neuvue-queue/blob/main/src/models/task.ts)
+            task_id (str): The ID of the question to delete
+            kwargs (dict or str or int): The fields to modify. Only supports 
+                - instruction
+                - priority 
+                - status
 
         Returns:
-            List[dict]
-
+            JSON
         """
-        res=None
-        # Iterating through each argument passed through kwargs and patching each
-        # For example, you can call patch_task(task_id_here, instructions = {"prompt": 'do a good job'}, status='in progress', priority='100')
+        if not kwargs:
+            return 
+
         for key, value in kwargs.items():
             stri = f"/tasks/{task_id}/{key}"
             res = self._try_request( 
