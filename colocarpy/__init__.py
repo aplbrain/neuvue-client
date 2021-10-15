@@ -922,7 +922,6 @@ class Colocard:
             raise RuntimeError("Failed to post question") from e
         return res.json()
 
-
     """
     ███╗   ██╗ ██████╗ ██████╗ ███████╗███████╗
     ████╗  ██║██╔═══██╗██╔══██╗██╔════╝██╔════╝
