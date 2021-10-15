@@ -1244,7 +1244,7 @@ class Colocard:
         """
         res = self._try_request(
             lambda: requests.delete(
-                self.url(f"/task/{task_id}"), headers=self._headers
+                self.url(f"/tasks/{task_id}"), headers=self._headers
             )
         )
         try:
@@ -1345,7 +1345,6 @@ class Colocard:
             "created": utils.date_to_ms(),
             "__v": 0,
         }
-
         res = self._try_request(
             lambda: requests.post(
                 self.url("/tasks"), data=json.dumps(task), headers=self._headers
@@ -1430,4 +1429,48 @@ class Colocard:
             self._raise_for_status(res)
         except Exception as e:
             raise RuntimeError("Failed to post task") from e
+        return res.json()
+
+    def patch_task_from_json(self, task_json: List[dict], **kwargs) -> bool:
+        task_id = task_json["_id"]
+        return self.patch_question(task_id, kwargs)
+
+    def patch_task(self, task_id: str, **kwargs):
+        """
+        Patch a single task. Iterates through each argument passed through kwargs and patches each.
+        
+        Exmaple:
+        > patch_task(
+            task_id, 
+            instructions = {"prompt": 'do a good job'}, 
+            status='pending', 
+            priority='100'
+        )
+        
+        Arguments:
+            task_id (str): The ID of the question to delete
+            kwargs (dict or str or int): The fields to modify. Only supports 
+                - instruction
+                - priority 
+                - status
+
+        Returns:
+            JSON
+        """
+        if not kwargs:
+            return 
+
+        for key, value in kwargs.items():
+            stri = f"/tasks/{task_id}/{key}"
+            res = self._try_request( 
+                lambda: requests.patch(
+                    self.url(stri), 
+                    data =json.dumps({key:value}),
+                    headers=self._headers)
+            )
+            try:
+                self._raise_for_status(res)
+            except Exception as e:
+                raise RuntimeError(f"Unable to patch question {task_id}") from e
+
         return res.json()
