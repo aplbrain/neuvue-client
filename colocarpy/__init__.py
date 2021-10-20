@@ -1065,7 +1065,7 @@ class Colocard:
 
             # If an empty response, then return an empty dataframe:
             if len(res) == 0:
-                return pd.DataFrame([], columns=self.dtype_columns("points"))
+                return pd.DataFrame([], columns=self.dtype_columns("point"))
 
             res.set_index("_id", inplace=True)
             res.created = pd.to_datetime(res.created, unit="ms")
@@ -1281,7 +1281,7 @@ class Colocard:
 
             # If an empty response, then return an empty dataframe:
             if len(res) == 0:
-                return pd.DataFrame([], columns=self.dtype_columns("tasks"))
+                return pd.DataFrame([], columns=self.dtype_columns("task"))
 
             res.set_index("_id", inplace=True)
             res.created = pd.to_datetime(res.created, unit="ms")
