@@ -199,7 +199,7 @@ class Colocard:
                 "priority",
                 "points"
                 "status",
-                "neuron_status"
+                "seg_id"
             ]
         }[datatype]
 
@@ -1146,20 +1146,22 @@ class Colocard:
        ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝
     """
     
-    def get_task(self, task_id: str) -> dict:
+    def get_task(self, task_id: str, populate_points: bool = False) -> dict:
         """
         Get a single task by its ID.
 
         Arguments:
             task_id (str): The ID of the task to retrieve
-
+            populate_points (bool = False): Populate points for the task object.
         Returns:
             dict
 
         """
         res = self._try_request(
             lambda: requests.get(
-                self.url(f"/tasks/{task_id}"), headers=self._headers
+                self.url(f"/tasks/{task_id}"), 
+                headers=self._headers,
+                params={"populate": "points" if populate_points else None}
             )
         )
         try:
@@ -1189,7 +1191,7 @@ class Colocard:
                 "assignee": assignee,
                 "namespace": namespace,
                 "active": True,
-                "status": "opened",
+                "status": "open",
             }
         )
         res = self._try_request(
@@ -1254,7 +1256,11 @@ class Colocard:
         return task_id
 
     def get_tasks(
-        self, sieve: dict = None, limit: int = None, active_default: bool = True
+        self, 
+        sieve: dict = None, 
+        limit: int = None, 
+        active_default: bool = True,
+        populate_points: bool = False
     ):
         """
         Get a list of tasks.
@@ -1263,6 +1269,7 @@ class Colocard:
             sieve (dict): See sieve documentation.
             limit (int: None): The maximum number of items to return.
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
+            populate_points (bool): Whether to populate the tasks' point ids with their corresponding point object.
 
         Returns:
             pd.DataFrame
@@ -1272,8 +1279,11 @@ class Colocard:
             sieve = {"active": active_default}
         if "active" not in sieve:
             sieve["active"] = active_default
+        
+        populate = ["points"] if populate_points else None
+        
         try:
-            depaginated_tasks = self.depaginate("tasks", sieve, limit=limit)
+            depaginated_tasks = self.depaginate("tasks", sieve, populate=populate, limit=limit)
         except Exception as e:
             raise RuntimeError("Unable to get tasks") from e
         else:
@@ -1298,6 +1308,7 @@ class Colocard:
         namespace: str,
         instructions: dict,
         metadata: dict = None,
+        seg_id: str = None,
         validate: bool = True,
     ):
         """
@@ -1311,6 +1322,7 @@ class Colocard:
             namespace (str)
             instructions (dict)
             metadata (dict = None)
+            seg_id (str = None)
             validate (bool = True)
 
         Returns:
@@ -1343,6 +1355,7 @@ class Colocard:
             "namespace": namespace,
             "instructions": instructions,
             "created": utils.date_to_ms(),
+            "seg_id": seg_id,
             "__v": 0,
         }
         res = self._try_request(
@@ -1365,6 +1378,7 @@ class Colocard:
         namespace: str,
         instructions: dict,
         metadata: dict = None,
+        seg_id: str = None,
         validate: bool = True,
     ):
         """
@@ -1378,6 +1392,7 @@ class Colocard:
             namespace (str)
             instructions (dict)
             metadata (dict = None)
+            seg_id (str = None)
             validate (bool = True)
 
         Returns:
@@ -1414,6 +1429,7 @@ class Colocard:
                     "namespace": namespace,
                     "instructions": instructions,
                     "created": created,
+                    "seg_id": seg_id,
                     "__v": 0,
                 }
             )
