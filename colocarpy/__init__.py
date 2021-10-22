@@ -197,7 +197,7 @@ class Colocard:
                 "namespace",
                 "opened",
                 "priority",
-                "points"
+                "points",
                 "status",
                 "seg_id"
             ]
