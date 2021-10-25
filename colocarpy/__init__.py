@@ -197,9 +197,9 @@ class Colocard:
                 "opened",
                 "priority",
                 "duration",
-                "points"
+                "points",
                 "status",
-                "neuron_status"
+                "seg_id"
             ]
         }[datatype]
 
@@ -1066,7 +1066,7 @@ class Colocard:
 
             # If an empty response, then return an empty dataframe:
             if len(res) == 0:
-                return pd.DataFrame([], columns=self.dtype_columns("points"))
+                return pd.DataFrame([], columns=self.dtype_columns("point"))
 
             res.set_index("_id", inplace=True)
             res.created = pd.to_datetime(res.created, unit="ms")
@@ -1147,20 +1147,22 @@ class Colocard:
        ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝
     """
     
-    def get_task(self, task_id: str) -> dict:
+    def get_task(self, task_id: str, populate_points: bool = False) -> dict:
         """
         Get a single task by its ID.
 
         Arguments:
             task_id (str): The ID of the task to retrieve
-
+            populate_points (bool = False): Populate points for the task object.
         Returns:
             dict
 
         """
         res = self._try_request(
             lambda: requests.get(
-                self.url(f"/tasks/{task_id}"), headers=self._headers
+                self.url(f"/tasks/{task_id}"), 
+                headers=self._headers,
+                params={"populate": "points" if populate_points else None}
             )
         )
         try:
@@ -1190,7 +1192,7 @@ class Colocard:
                 "assignee": assignee,
                 "namespace": namespace,
                 "active": True,
-                "status": "opened",
+                "status": "open",
             }
         )
         res = self._try_request(
@@ -1255,7 +1257,11 @@ class Colocard:
         return task_id
 
     def get_tasks(
-        self, sieve: dict = None, limit: int = None, active_default: bool = True
+        self, 
+        sieve: dict = None, 
+        limit: int = None, 
+        active_default: bool = True,
+        populate_points: bool = False
     ):
         """
         Get a list of tasks.
@@ -1264,6 +1270,7 @@ class Colocard:
             sieve (dict): See sieve documentation.
             limit (int: None): The maximum number of items to return.
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
+            populate_points (bool): Whether to populate the tasks' point ids with their corresponding point object.
 
         Returns:
             pd.DataFrame
@@ -1273,8 +1280,11 @@ class Colocard:
             sieve = {"active": active_default}
         if "active" not in sieve:
             sieve["active"] = active_default
+        
+        populate = ["points"] if populate_points else None
+        
         try:
-            depaginated_tasks = self.depaginate("tasks", sieve, limit=limit)
+            depaginated_tasks = self.depaginate("tasks", sieve, populate=populate, limit=limit)
         except Exception as e:
             raise RuntimeError("Unable to get tasks") from e
         else:
@@ -1282,7 +1292,7 @@ class Colocard:
 
             # If an empty response, then return an empty dataframe:
             if len(res) == 0:
-                return pd.DataFrame([], columns=self.dtype_columns("tasks"))
+                return pd.DataFrame([], columns=self.dtype_columns("task"))
 
             res.set_index("_id", inplace=True)
             res.created = pd.to_datetime(res.created, unit="ms")
@@ -1300,6 +1310,7 @@ class Colocard:
         instructions: dict,
         duration: int = 0,
         metadata: dict = None,
+        seg_id: str = None,
         validate: bool = True,
     ):
         """
@@ -1313,6 +1324,7 @@ class Colocard:
             namespace (str)
             instructions (dict)
             metadata (dict = None)
+            seg_id (str = None)
             validate (bool = True)
 
         Returns:
@@ -1349,6 +1361,7 @@ class Colocard:
             "namespace": namespace,
             "instructions": instructions,
             "created": utils.date_to_ms(),
+            "seg_id": seg_id,
             "__v": 0,
         }
         res = self._try_request(
@@ -1372,6 +1385,7 @@ class Colocard:
         instructions: dict,
         duration: int = 0,
         metadata: dict = None,
+        seg_id: str = None,
         validate: bool = True,
     ):
         """
@@ -1385,6 +1399,7 @@ class Colocard:
             namespace (str)
             instructions (dict)
             metadata (dict = None)
+            seg_id (str = None)
             validate (bool = True)
 
         Returns:
@@ -1425,6 +1440,7 @@ class Colocard:
                     "namespace": namespace,
                     "instructions": instructions,
                     "created": created,
+                    "seg_id": seg_id,
                     "__v": 0,
                 }
             )
@@ -1446,6 +1462,7 @@ class Colocard:
         task_id = task_json["_id"]
         return self.patch_question(task_id, kwargs)
 
+<<<<<<< HEAD
     def patch_task(
         self, 
         task_id: str,
@@ -1464,6 +1481,33 @@ class Colocard:
         res=None
         # Iterating through each argument passed through kwargs and patching each
         # For example, you can call patch_task(task_id_here, instructions = {"prompt": 'do a good job'}, status='in progress', priority='100')
+=======
+    def patch_task(self, task_id: str, **kwargs):
+        """
+        Patch a single task. Iterates through each argument passed through kwargs and patches each.
+        
+        Exmaple:
+        > patch_task(
+            task_id, 
+            instructions = {"prompt": 'do a good job'}, 
+            status='pending', 
+            priority='100'
+        )
+        
+        Arguments:
+            task_id (str): The ID of the question to delete
+            kwargs (dict or str or int): The fields to modify. Only supports 
+                - instruction
+                - priority 
+                - status
+
+        Returns:
+            JSON
+        """
+        if not kwargs:
+            return 
+
+>>>>>>> master
         for key, value in kwargs.items():
             stri = f"/tasks/{task_id}/{key}"
             res = self._try_request( 
@@ -1477,4 +1521,8 @@ class Colocard:
             except Exception as e:
                 raise RuntimeError(f"Unable to patch question {task_id}") from e
 
+<<<<<<< HEAD
         return res.json()
+=======
+        return res.json()
+>>>>>>> master
