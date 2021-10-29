@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-# neuvueclient.NeuvueQueue
+# colocarpy.Colocard
 
 ## Sieveing
 The `sieve` keyword in many of the below functions refers to an arbitrary
@@ -47,24 +47,23 @@ from . import validator
 
 __version__ = version.__version__
 
-class NeuvueQueue:
+class Colocard:
     """
-    neuvueclient.NeuvueQueue abstracts the interfaces to interact with NeuvueQueue.
+    colocarpy.Colocard abstracts the interfaces to interact with Colocard.
 
-    See neuvueclient/__init__.py for more documentation.
+    See colocarpy/__init__.py for more documentation.
 
     """
 
     def __init__(self, url: str, **kwargs) -> None:
         """
-        Create a new neuvuequeue client.
+        Create a new colocard client.
 
         Arguments:
             url (str): The qualified location (including protocol) of the server.
 
         """
         # TODO: Add google auth layer
-        # Justin: TODO: I didn't change colocarpy below. If this is integrated, change that to neuvueclient
         # config = configparser.ConfigParser()
 
         # auth_method = ""
@@ -72,12 +71,12 @@ class NeuvueQueue:
         #     auth_method = "Inline Arguments"
         #     self._username = kwargs["username"]
         #     self._password = kwargs["password"]
-        # elif ("NEUVUEQUEUE_USERNAME" in os.environ) and (
-        #     "NEUVUEQUEUE_PASSWORD" in os.environ
+        # elif ("COLOCARD_USERNAME" in os.environ) and (
+        #     "COLOCARD_PASSWORD" in os.environ
         # ):
         #     auth_method = "Environment Variables"
-        #     self._username = os.environ["NEUVUEQUEUE_USERNAME"]
-        #     self._password = os.environ["NEUVUEQUEUE_PASSWORD"]
+        #     self._username = os.environ["COLOCARD_USERNAME"]
+        #     self._password = os.environ["COLOCARD_PASSWORD"]
         # else:
         #     try:
         #         config.read(os.path.expanduser("~/.colocarpy/.colocarpy"))

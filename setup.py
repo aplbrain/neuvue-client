@@ -21,16 +21,16 @@ def find_version(*file_paths):
     else:
         return "UNKNOWN"
 HERE = os.path.abspath(os.path.dirname(__file__))
-VERSION = find_version("neuvueclient", "version.py")
+VERSION = find_version("colocarpy", "version.py")
 setup(
-    name="neuvueclient",
+    name="colocarpy",
     version=VERSION,
     author="Jordan Matelsky",
     author_email="jordan.matelsky@jhuapl.edu",
-    description=("Python client for neuvuequeue"),
+    description=("Python client for colocard"),
     license="Apache 2.0",
     keywords="",
-    url="https://github.com/aplbrain/neuvueclient/tarball/" + VERSION,
+    url="https://github.com/aplbrain/colocarpy/tarball/" + VERSION,
     packages=find_packages(),
     install_requires=[
         "matplotlib",

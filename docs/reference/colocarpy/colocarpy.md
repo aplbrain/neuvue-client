@@ -1,16 +1,16 @@
-## *Class* `NeuvueQueue`
+## *Class* `Colocard`
 
 
-neuvueclient.NeuvueQueue abstracts the interfaces to interact with NeuvueQueue.
+colocarpy.Colocard abstracts the interfaces to interact with Colocard.
 
-See neuvueclient/__init__.py for more documentation.
+See colocarpy/__init__.py for more documentation.
 
 
 
 ## *Function* `__init__(self, url: str, **kwargs) -> None`
 
 
-Create a new neuvuequeue client.
+Create a new colocard client.
 
 ### Arguments
 > - **url** (`str`: `None`): The qualified location (including protocol) of the server.

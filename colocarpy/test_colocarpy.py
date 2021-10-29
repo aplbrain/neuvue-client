@@ -1,17 +1,16 @@
-import neuvueclient as Client
-from neuvueclient import NeuvueQueue
+import colocarpy
+from colocarpy import Colocard
 from networkx import Graph
 
 import random
 import unittest
 
-# TODO URL
-NEUVUEQUEUE_URL = "https://colocard.thebossdev.io"
+COLOCARD_URL = "https://colocard.thebossdev.io"
 
 
-class TestNeuvueClientGraphs(unittest.TestCase):
+class TestColocarpyGraphs(unittest.TestCase):
     def test_converts_graph(self):
-        C = NeuvueQueue(NEUVUEQUEUE_URL)
+        C = Colocard(COLOCARD_URL)
 
         result = C.get_graphs({"author": "j6m8", "active": True})
 
@@ -19,7 +18,7 @@ class TestNeuvueClientGraphs(unittest.TestCase):
         self.assertEqual(type(result.iloc[0].graph), Graph)
 
     def test_empty_list(self):
-        C = NeuvueQueue(NEUVUEQUEUE_URL)
+        C = Colocard(COLOCARD_URL)
 
         result = C.get_graphs(
             {"author": f"random-user-{random.randint(1000, 2000)}", "active": False}
@@ -28,9 +27,9 @@ class TestNeuvueClientGraphs(unittest.TestCase):
         self.assertListEqual(list(result.columns), C.dtype_columns("graph"))
 
 
-class TestNeuvueClientVolumes(unittest.TestCase):
+class TestColocarpyVolumes(unittest.TestCase):
     def test_empty_list(self):
-        C = NeuvueQueue(NEUVUEQUEUE_URL)
+        C = Colocard(COLOCARD_URL)
 
         result = C.get_volumes(
             {"author": f"random-user-{random.randint(1000, 2000)}", "active": False}
@@ -39,9 +38,9 @@ class TestNeuvueClientVolumes(unittest.TestCase):
         self.assertListEqual(list(result.columns), C.dtype_columns("volume"))
 
 
-class TestNeuvueClientQuestions(unittest.TestCase):
+class TestColocarpyQuestions(unittest.TestCase):
     def test_empty_list(self):
-        C = NeuvueQueue(NEUVUEQUEUE_URL)
+        C = Colocard(COLOCARD_URL)
 
         result = C.get_questions(
             {"author": f"random-user-{random.randint(1000, 2000)}", "active": False}
@@ -50,9 +49,9 @@ class TestNeuvueClientQuestions(unittest.TestCase):
         self.assertListEqual(list(result.columns), C.dtype_columns("question"))
 
 
-class TestNeuvueClientNodes(unittest.TestCase):
+class TestColocarpyNodes(unittest.TestCase):
     def test_empty_list(self):
-        C = NeuvueQueue(NEUVUEQUEUE_URL)
+        C = Colocard(COLOCARD_URL)
 
         result = C.get_nodes(
             {"author": f"random-user-{random.randint(1000, 2000)}", "active": False}
