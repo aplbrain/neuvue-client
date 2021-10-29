@@ -27,6 +27,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 from typing import Any, Callable, List, Optional
 
 import datetime
@@ -196,7 +197,6 @@ class Colocard:
                 "namespace",
                 "opened",
                 "priority",
-                "duration",
                 "points",
                 "status",
                 "seg_id"
@@ -922,7 +922,6 @@ class Colocard:
             raise RuntimeError("Failed to post question") from e
         return res.json()
 
-
     """
     ███╗   ██╗ ██████╗ ██████╗ ███████╗███████╗
     ████╗  ██║██╔═══██╗██╔══██╗██╔════╝██╔════╝
@@ -1308,7 +1307,6 @@ class Colocard:
         priority: int,
         namespace: str,
         instructions: dict,
-        duration: int = 0,
         metadata: dict = None,
         seg_id: str = None,
         validate: bool = True,
@@ -1337,9 +1335,6 @@ class Colocard:
         if not isinstance(priority, int):
             raise ValueError(f"Priority [{priority}] must be an integer.")
 
-        if not isinstance(duration, int):
-            raise ValueError(f"Duration [{duration}] must be an integer.")
-
         if validate:
             for point in points:
                 try:
@@ -1355,7 +1350,6 @@ class Colocard:
             "status": "pending",
             "points": points,
             "priority": priority,
-            "duration": duration,
             "author": author,
             "assignee": assignee,
             "namespace": namespace,
@@ -1383,7 +1377,6 @@ class Colocard:
         priority: int,
         namespace: str,
         instructions: dict,
-        duration: int = 0,
         metadata: dict = None,
         seg_id: str = None,
         validate: bool = True,
@@ -1412,9 +1405,6 @@ class Colocard:
         if not isinstance(priority, int):
             raise ValueError(f"Priority [{priority}] must be an integer.")
 
-        if not isinstance(duration, int):
-            raise ValueError(f"Duration [{duration}] must be an integer.")
-
         if validate:
             for point in points:
                 try:
@@ -1434,7 +1424,6 @@ class Colocard:
                     "status": "pending",
                     "points": points,
                     "priority": priority,
-                    "duration": duration,
                     "author": author,
                     "assignee": a,
                     "namespace": namespace,
