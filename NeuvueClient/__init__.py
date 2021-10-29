@@ -63,6 +63,7 @@ class NeuvueQueue:
 
         """
         # TODO: Add google auth layer
+        # Justin: TODO: I didn't change colocarpy below. If this is integrated, change that to neuvueclient
         # config = configparser.ConfigParser()
 
         # auth_method = ""
