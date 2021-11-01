@@ -199,7 +199,8 @@ class Colocard:
                 "duration",
                 "points",
                 "status",
-                "seg_id"
+                "seg_id",
+                "ng_state"
             ]
         }[datatype]
 
