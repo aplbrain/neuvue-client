@@ -1458,10 +1458,6 @@ class Colocard:
             raise RuntimeError("Failed to post task") from e
         return res.json()
 
-    def patch_task_from_json(self, task_json: List[dict], **kwargs) -> bool:
-        task_id = task_json["_id"]
-        return self.patch_question(task_id, kwargs)
-
     def patch_task(self, task_id: str, **kwargs):
         """
         Patch a single task. Iterates through each argument passed through kwargs and patches each.
@@ -1480,6 +1476,9 @@ class Colocard:
                 - instruction
                 - priority 
                 - status
+                - metadata
+                - duration
+                - ngstate
 
         Returns:
             JSON
@@ -1498,6 +1497,6 @@ class Colocard:
             try:
                 self._raise_for_status(res)
             except Exception as e:
-                raise RuntimeError(f"Unable to patch question {task_id}") from e
+                raise RuntimeError(f"Unable to patch task {task_id}") from e
 
         return res.json()
