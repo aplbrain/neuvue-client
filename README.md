@@ -1,4 +1,4 @@
-<p align=center><img align=center src='CARP.svg' width=300 /></p>
+<p align=center><img align=center src='axonolotl.png' width=300 /></p>
 <h3 align=center>neuvue-client</h3>
 <h6 align=center>a python client for neuvuequeue</h6>
 
@@ -27,19 +27,15 @@ import neuvueclient as Client
 C = Client.NeuvueQueue("http://neuvuequeue-server/")
 ```
 
-Now you can do all that your coloheart desires:
+Now you can do all that your corazón desires:
 
 ```python
-C.get_questions(sieve={"namespace": "breadcrumbs"})
+C.get_tasks(sieve={"namespace": "split"})
 ```
 
 # Implementation Progress
 
-| Object   | Post | Get by ID | List | Delete |
-|----------|------|-----------|------|--------|
-| Volume   | ✅ | ✅ | ✅ | ✅ |
-| Question | ✅ | ✅ | ✅ | ✅ |
-| Node     | ⛔ | ✅ | ✅ | ⛔ |
-| Graph    | ✅ | ✅ | ✅ | ✅ |
-| Point    | ✅ | ✅ | ✅ | ✅ |
-| Task     | ✅ | ✅ | ✅ | ✅ |
+| Object   | POST | GET | LIST | DELETE | PATCH |
+|----------|------|-----|------|--------|-------|
+| Point    | ✅ | ✅ | ✅ | ✅ | ⛔ 
+| Task     | ✅ | ✅ | ✅ | ✅ | ✅
