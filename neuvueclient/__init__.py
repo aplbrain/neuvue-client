@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-# colocarpy.Colocard
+# neuvueclient.NeuvueQueue
 
 ## Sieveing
 The `sieve` keyword in many of the below functions refers to an arbitrary
@@ -46,17 +46,17 @@ from . import validator
 
 __version__ = version.__version__
 
-class Colocard:
+class NeuvueQueue:
     """
-    colocarpy.Colocard abstracts the interfaces to interact with Colocard.
+    neuvueclient.NeuvueQueue abstracts the interfaces to interact with NeuvueQueue.
 
-    See colocarpy/__init__.py for more documentation.
+    See neuvueclient/__init__.py for more documentation.
 
     """
 
     def __init__(self, url: str, **kwargs) -> None:
         """
-        Create a new colocard client.
+        Create a new neuvuequeue client.
 
         Arguments:
             url (str): The qualified location (including protocol) of the server.
