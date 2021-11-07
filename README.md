@@ -5,7 +5,7 @@
 # Installation
 
 ```shell
-pip3 install git+https://github.com/aplbrain/neuvueclient.git
+pip3 install git+https://github.com/aplbrain/neuvue-client.git
 ```
 
 # Configuration
