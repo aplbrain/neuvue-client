@@ -1312,6 +1312,7 @@ class NeuvueQueue:
         duration: int = 0,
         metadata: dict = None,
         seg_id: str = None,
+        ng_state: str = None,
         validate: bool = True,
     ):
         """
@@ -1363,6 +1364,7 @@ class NeuvueQueue:
             "instructions": instructions,
             "created": utils.date_to_ms(),
             "seg_id": seg_id,
+            "ng_state": ng_state,
             "__v": 0,
         }
         res = self._try_request(
@@ -1387,6 +1389,7 @@ class NeuvueQueue:
         duration: int = 0,
         metadata: dict = None,
         seg_id: str = None,
+        ng_state: str = None,
         validate: bool = True,
     ):
         """
@@ -1401,6 +1404,7 @@ class NeuvueQueue:
             instructions (dict)
             metadata (dict = None)
             seg_id (str = None)
+            ng_state (str = None)
             validate (bool = True)
 
         Returns:
@@ -1442,6 +1446,7 @@ class NeuvueQueue:
                     "instructions": instructions,
                     "created": created,
                     "seg_id": seg_id,
+                    "ng_state": ng_state,
                     "__v": 0,
                 }
             )
