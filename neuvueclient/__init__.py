@@ -200,7 +200,8 @@ class NeuvueQueue:
                 "points",
                 "status",
                 "seg_id",
-                "ng_state"
+                "ng_state",
+                "decision"
             ]
         }[datatype]
 
@@ -1485,6 +1486,7 @@ class NeuvueQueue:
                 - metadata
                 - duration
                 - ngstate
+                - decision
 
         Returns:
             JSON
