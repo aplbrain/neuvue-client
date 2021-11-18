@@ -1303,12 +1303,12 @@ class NeuvueQueue:
 
     def post_task(
         self,
-        points: List[str],
         author: str,
         assignee: str,
         priority: int,
         namespace: str,
         instructions: dict,
+        points: List[str] = None,
         duration: int = 0,
         metadata: dict = None,
         seg_id: str = None,
@@ -1380,12 +1380,12 @@ class NeuvueQueue:
 
     def post_task_broadcast(
         self,
-        points: List[str],
         author: str,
         assignees: List[str],
         priority: int,
         namespace: str,
         instructions: dict,
+        points: List[str] = None,
         duration: int = 0,
         metadata: dict = None,
         seg_id: str = None,
