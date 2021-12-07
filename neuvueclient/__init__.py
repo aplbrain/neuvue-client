@@ -96,7 +96,14 @@ class NeuvueQueue:
         """
         Generates a new authorization token and saves it to a config file.
         """
-        pass
+        link = "https://dev-oe-jgl7m.us.auth0.com/authorize?response_type=code&client_id=BdwlItpSZeMrd2ZJwaVrmn0VILYhmriK&redirect_uri=https://app.neuvue.io/&scope=openid%20profile%20email%20offline_access&audience=https://queue.neuvue.io"
+        # Verify code 
+        code = input("Go to this link and log in using your google account, then copy to the text box below:")
+
+        # Make a request to neuvuequeue to get the authorization token
+        response = requests.get(self.url('/token'))["access_token"]
+        
+        
 
     def _get_authorization_token(self):
         """
