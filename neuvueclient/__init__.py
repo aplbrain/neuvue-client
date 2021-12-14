@@ -1493,8 +1493,12 @@ class NeuvueQueue:
             return 
 
         for key, value in kwargs.items():
+            if key == 'metadata':
+                old_metadata = self.get_task(task_id)['metadata']
+                value.update(old_metadata)
+
             stri = f"/tasks/{task_id}/{key}"
-            res = self._try_request( 
+            self._try_request( 
                 lambda: requests.patch(
                     self.url(stri), 
                     data =json.dumps({key:value}),
@@ -1504,5 +1508,3 @@ class NeuvueQueue:
                 self._raise_for_status(res)
             except Exception as e:
                 raise RuntimeError(f"Unable to patch task {task_id}") from e
-
-        return res.json()
