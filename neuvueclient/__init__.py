@@ -1493,6 +1493,10 @@ class NeuvueQueue:
             return 
 
         for key, value in kwargs.items():
+            if key == 'metadata':
+                old_metadata = self.get_task(task_id)['metadata']
+                value = value.update(old_metadata)
+
             stri = f"/tasks/{task_id}/{key}"
             res = self._try_request( 
                 lambda: requests.patch(
