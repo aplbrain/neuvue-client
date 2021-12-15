@@ -1498,7 +1498,7 @@ class NeuvueQueue:
                 value.update(old_metadata)
 
             stri = f"/tasks/{task_id}/{key}"
-            self._try_request( 
+            res = self._try_request( 
                 lambda: requests.patch(
                     self.url(stri), 
                     data =json.dumps({key:value}),
