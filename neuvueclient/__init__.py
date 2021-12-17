@@ -1303,15 +1303,16 @@ class NeuvueQueue:
 
     def post_task(
         self,
-        points: List[str],
         author: str,
         assignee: str,
         priority: int,
         namespace: str,
         instructions: dict,
+        points: List[str] = None,
         duration: int = 0,
         metadata: dict = None,
         seg_id: str = None,
+        ng_state: str = None,
         validate: bool = True,
     ):
         """
@@ -1363,6 +1364,7 @@ class NeuvueQueue:
             "instructions": instructions,
             "created": utils.date_to_ms(),
             "seg_id": seg_id,
+            "ng_state": ng_state,
             "__v": 0,
         }
         res = self._try_request(
@@ -1378,15 +1380,16 @@ class NeuvueQueue:
 
     def post_task_broadcast(
         self,
-        points: List[str],
         author: str,
         assignees: List[str],
         priority: int,
         namespace: str,
         instructions: dict,
+        points: List[str] = None,
         duration: int = 0,
         metadata: dict = None,
         seg_id: str = None,
+        ng_state: str = None,
         validate: bool = True,
     ):
         """
@@ -1401,6 +1404,7 @@ class NeuvueQueue:
             instructions (dict)
             metadata (dict = None)
             seg_id (str = None)
+            ng_state (str = None)
             validate (bool = True)
 
         Returns:
@@ -1442,6 +1446,7 @@ class NeuvueQueue:
                     "instructions": instructions,
                     "created": created,
                     "seg_id": seg_id,
+                    "ng_state": ng_state,
                     "__v": 0,
                 }
             )
@@ -1488,6 +1493,10 @@ class NeuvueQueue:
             return 
 
         for key, value in kwargs.items():
+            if key == 'metadata':
+                old_metadata = self.get_task(task_id)['metadata']
+                value.update(old_metadata)
+
             stri = f"/tasks/{task_id}/{key}"
             res = self._try_request( 
                 lambda: requests.patch(
@@ -1499,5 +1508,3 @@ class NeuvueQueue:
                 self._raise_for_status(res)
             except Exception as e:
                 raise RuntimeError(f"Unable to patch task {task_id}") from e
-
-        return res.json()
