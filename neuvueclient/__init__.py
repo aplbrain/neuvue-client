@@ -28,6 +28,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 from typing import Any, Callable, List, Optional
+import http
+import ast
 
 import datetime
 import json
@@ -51,8 +53,8 @@ class NeuvueQueue:
     See neuvueclient/__init__.py for more documentation.
 
     """
-
-    def __init__(self, url: str, **kwargs) -> None:
+    # TODO change queue url once integrated
+    def __init__(self, url: str, queue_url="dev-queue.neuvue.io", **kwargs) -> None:
         """
         Create a new neuvuequeue client.
 
@@ -61,8 +63,8 @@ class NeuvueQueue:
 
         """
         # TODO: Add google auth layer
-        config = configparser.ConfigParser()
-
+        self.config = configparser.ConfigParser()
+        self.queue_url = queue_url
         auth_method = ""
         if "token" in kwargs:
             auth_method = "Inline Arguments"
@@ -75,42 +77,86 @@ class NeuvueQueue:
             self._access_token = os.environ["NEUVUEQUEUE_ACCESS_TOKEN"] 
         else:
             try:
-                config.read(os.path.expanduser("~/.neuvuequeue/neuvuequeue.cfg"))
+                self.config.read(os.path.expanduser("neuvuequeue.cfg"))
+                print(self.config["CONFIG"]["refresh_token"])
                 auth_method = "Config File"
-                self._refresh_token = config["CONFIG"]["refresh_token"]
-                self._access_token = config["CONFIG"]["access_token"]
-            except:
-                raise ValueError("No authentication (Token) provided.")
+                self._refresh_token = self.config["CONFIG"]["refresh_token"]
 
-        try:
-            self._access_token = self._get_authorization_token()["access_token"]
-        except KeyError:
-            raise ValueError(f"Authorization failed with method [{auth_method}].")
+            except:
+                print("No tokens found. Please login. \n")
+                self.login()
+
+            self._refresh_authorization_token(self._refresh_token)
+            self.config.read(os.path.expanduser("neuvuequeue.cfg"))
+
+            self._access_token = self.config["CONFIG"]["access_token"]
+        # try:
+        #     self._access_token = self._get_authorization_token()["access_token"]
+        # except KeyError:
+        #     raise ValueError(f"Authorization failed with method [{auth_method}].")
 
         self._url = url.rstrip("/")
         self._custom_headers: dict = {}
         if "headers" in kwargs:
             self._custom_headers.update(kwargs["headers"])
     
-    def login(self):
+    def login(self, authorization_token=None):
         """
         Generates a new authorization token and saves it to a config file.
         """
+
         link = "https://dev-oe-jgl7m.us.auth0.com/authorize?response_type=code&client_id=BdwlItpSZeMrd2ZJwaVrmn0VILYhmriK&redirect_uri=https://app.neuvue.io/&scope=openid%20profile%20email%20offline_access&audience=https://queue.neuvue.io"
         # Verify code 
-        code = input("Go to this link and log in using your google account, then copy to the text box below:")
-
+        code = input(f"Go to this link: \n {link} \n and log in using your google account, then copy the text in the URL after 'code=' into text box below:")
+        
         # Make a request to neuvuequeue to get the authorization token
-        response = requests.get(self.url('/token'))["access_token"]
-        
-        
+        conn = http.client.HTTPSConnection(self.queue_url)
+        # payload = "{\"code\":\"GeeZlxgGsr5nc5bR97IBFVcgjG4iiv8b_t6mVp12C6ap4\",\"code_type\":\"authorization\"}"
+        payload = "{\"code\":\"" + code + "\",\"code_type\":\"authorization\"}"
 
-    def _get_authorization_token(self):
+        headers = { 'content-type': "application/json" }
+        conn.request("POST", "/auth/tokens", payload, headers)
+
+        res = conn.getresponse()
+        data = res.read()
+        response = data.decode("utf-8")
+        response_dict = ast.literal_eval(response)
+        refresh = response_dict["refresh_token"]
+        access = response_dict["access_token"]
+        self.config['CONFIG'] = {'refresh_token': '',
+                                 'access_token': '',}
+        self.config["CONFIG"]["refresh_token"] = refresh
+        self.config["CONFIG"]["access_token"] = access
+        # os.mkdir("~/.neuvuequeue")
+        with open(os.path.expanduser("neuvuequeue.cfg"), 'w') as configfile:
+            self.config.write(configfile)
+            
+        print(f"Your refresh token is: \n \n{refresh} \n \nYour access token is \n \n{access} \n \nBoth are saved to a file at ~/.neuvuequeue/neuvuequeue.cfg, which will be read from now on \n \nNote:If your token doesn't work, you may be a first time user. If this is the case, please give your email to the team, and they will give your account the necessary permission to make a token.")
+        self._access_token = access
+        self._refresh_token = refresh
+        return response
+
+    def _refresh_authorization_token(self, refresh: str):
         """
-        Uses the current authorization token to check if its expired. If it is, use the 
-        refresh token to generate a new one. 
+        Use the refresh token to generate a new one. 
         """
-        pass
+        conn = http.client.HTTPSConnection(self.queue_url)
+        # payload = "{\"code\":\"GeeZlxgGsr5nc5bR97IBFVcgjG4iiv8b_t6mVp12C6ap4\",\"code_type\":\"authorization\"}"
+        payload = "{\"code\":\"" + refresh + "\",\"code_type\":\"refresh\"}"
+
+        headers = { 'content-type': "application/json" }
+        conn.request("POST", "/auth/tokens", payload, headers)
+
+        res = conn.getresponse()
+        data = res.read()
+        response = data.decode("utf-8")
+        response_dict = ast.literal_eval(response)
+        access = response_dict["access_token"]
+
+        self.config["CONFIG"]["access_token"] = access
+        # os.mkdir("~/.neuvuequeue")
+        with open(os.path.expanduser("neuvuequeue.cfg"), 'w') as configfile:
+            self.config.write(configfile)
     
     def _set_authorization_token(self):
         self._access_token = self._get_authorization_token()["access_token"]
