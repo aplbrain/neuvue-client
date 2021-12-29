@@ -1196,12 +1196,12 @@ class NeuvueQueue:
             }
         
         try:
-            res = self.get_tasks(query, limit=1)
+            res = self.depaginate("tasks", query, limit=1)
         except Exception as e:
             raise RuntimeError("Unable to get opened tasks") from e
 
         if len(res):
-            return res.to_dict(orient='index')
+            return res[0]
 
         query = {
                 "assignee": assignee,
@@ -1210,13 +1210,11 @@ class NeuvueQueue:
                 "status": "pending",
             }
         try:
-            res = self.get_tasks(query, limit=1)
+            res = self.depaginate("tasks", query, limit=1)
         except Exception as e:
             raise RuntimeError("Unable to get opened tasks") from e
 
-        r = res.to_dict(orient='index')
-
-        return r[0] if r else None
+        return res[0] if res else None
 
     def delete_task(self, task_id: str) -> str:
         """
