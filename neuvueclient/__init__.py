@@ -1188,50 +1188,33 @@ class NeuvueQueue:
             dict
 
         """
-        query = json.dumps(
-            {
+        query = {
                 "assignee": assignee,
                 "namespace": namespace,
                 "active": True,
                 "status": "open",
             }
-        )
-        res = self._try_request(
-            lambda: requests.get(
-                self.url(f"/tasks"), headers=self._headers, params={"q": query}
-            )
-        )
+        
         try:
-            self._raise_for_status(res)
+            res = self.get_tasks(query, limit=1)
         except Exception as e:
             raise RuntimeError("Unable to get opened tasks") from e
 
-        r = res.json()
+        if len(res):
+            return res.to_dict(orient='index')
 
-        if len(r):
-            return r[0]
-
-        query = json.dumps(
-            {
+        query = {
                 "assignee": assignee,
                 "namespace": namespace,
                 "active": True,
                 "status": "pending",
             }
-        )
-        res = self._try_request(
-            lambda: requests.get(
-                self.url("/tasks"),
-                headers=self._headers,
-                params={"q": query, "sort": "-priority"},
-            )
-        )
         try:
-            self._raise_for_status(res)
+            res = self.get_tasks(query, limit=1)
         except Exception as e:
             raise RuntimeError("Unable to get opened tasks") from e
 
-        r = res.json()
+        r = res.to_dict(orient='index')
 
         return r[0] if r else None
 
