@@ -1244,7 +1244,6 @@ class NeuvueQueue:
         limit: int = None, 
         active_default: bool = True,
         populate_points: bool = False,
-        sort: str = "-priority",
         return_states: bool = True,
         return_metadata: bool = True
     ):
@@ -1269,7 +1268,6 @@ class NeuvueQueue:
             sieve["active"] = active_default
         
         populate = ["points"] if populate_points else None
-        sort = [sort] if sort else None
         select = self.dtype_columns("task")
         if not return_states:
             select.remove('ng_state')
@@ -1277,7 +1275,7 @@ class NeuvueQueue:
             select.remove('metadata')
 
         try:
-            depaginated_tasks = self.depaginate("tasks", sieve, sort=sort, select=select, populate=populate, limit=limit)
+            depaginated_tasks = self.depaginate("tasks", sieve, select=select, populate=populate, limit=limit)
         except Exception as e:
             raise RuntimeError("Unable to get tasks") from e
         else:
