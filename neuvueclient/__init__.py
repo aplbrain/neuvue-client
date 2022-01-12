@@ -200,7 +200,8 @@ class NeuvueQueue:
                 "points",
                 "status",
                 "seg_id",
-                "ng_state"
+                "ng_state",
+                "tags",
             ]
         }[datatype]
 
@@ -1284,7 +1285,6 @@ class NeuvueQueue:
             # If an empty response, then return an empty dataframe:
             if len(res) == 0:
                 return pd.DataFrame([], columns=self.dtype_columns("task"))
-
             res.set_index("_id", inplace=True)
             res.created = pd.to_datetime(res.created, unit="ms")
             res.opened = pd.to_datetime(res.opened, unit="ms")
@@ -1304,6 +1304,7 @@ class NeuvueQueue:
         seg_id: str = None,
         ng_state: str = None,
         validate: bool = True,
+        version: int = 1,
     ):
         """
         Post a new task to the database.
@@ -1355,7 +1356,7 @@ class NeuvueQueue:
             "created": utils.date_to_ms(),
             "seg_id": seg_id,
             "ng_state": ng_state,
-            "__v": 0,
+            "__v": version,
         }
         res = self._try_request(
             lambda: requests.post(
