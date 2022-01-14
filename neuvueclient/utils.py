@@ -113,7 +113,8 @@ def post_to_state_server(state: str, json_state_server:str, json_state_server_to
     resp = requests.post(json_state_server, data=state, headers=headers)
 
     if resp.status_code != 200:
-        raise Exception("POST Unsuccessful")
+        print(f"Unable to post neuroglancer state to {json_state_server}. Error code: {resp.status_code}")
+        return
     
     # Response will contain the URL for the state you just posted
     return str(resp.json())
@@ -133,7 +134,8 @@ def get_from_state_server(url: str, json_state_server_token):
     }
     resp = requests.get(url, headers=headers)
     if resp.status_code != 200:
-        raise Exception("GET Unsuccessful")
+        print(f"Unable to get neuroglancer state from {url}. Error code: {resp.status_code}")
+        return
     
     # TODO: Make sure its JSON String
     return resp.text
