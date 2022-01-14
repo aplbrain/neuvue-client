@@ -79,6 +79,13 @@ def unpack_uri(uri: str) -> dict:
         return {"URI": uri}
     return uri_unpackers[uri_type](uri)
 
+def is_json(value):
+    try:
+        json.loads(value)
+        return True
+    except:
+        return False
+
 def get_caveclient_token():
     # Get the authorization token from caveclient
     token_file = os.path.expanduser('~/.cloudvolume/secrets/cave-secret.json')

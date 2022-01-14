@@ -1308,7 +1308,7 @@ class NeuvueQueue:
             instructions (dict)
             metadata (dict = None)
             seg_id (str = None)
-            validate (bool = True)
+            post_state (bool = True)
 
         Returns:
             dict
@@ -1325,8 +1325,10 @@ class NeuvueQueue:
         
         if (post_state and 
             ng_state is not None and 
+            utils.is_json(ng_state) and
             self._json_state_server_token is not None
             ):
+
             ng_state_url = utils.post_to_state_server(
                 ng_state, 
                 self._json_state_server, 
@@ -1390,7 +1392,7 @@ class NeuvueQueue:
             metadata (dict = None)
             seg_id (str = None)
             ng_state (str = None)
-            validate (bool = True)
+            post_state (bool = True)
 
         Returns:
             List[dict]
@@ -1406,7 +1408,8 @@ class NeuvueQueue:
             raise ValueError(f"Duration [{duration}] must be an integer.")
 
         if (post_state and 
-            ng_state is not None and 
+            ng_state is not None and
+            utils.is_json(ng_state) and 
             self._json_state_server_token is not None
             ):
             ng_state_url = utils.post_to_state_server(
