@@ -42,7 +42,6 @@ import requests
 
 from . import utils
 from . import version
-from . import validator
 
 __version__ = version.__version__
 
@@ -94,6 +93,9 @@ class NeuvueQueue:
         self._custom_headers: dict = {}
         if "headers" in kwargs:
             self._custom_headers.update(kwargs["headers"])
+        
+        self._json_state_server = kwargs.get('json_state_server', "https://global.daf-apis.com/nglstate/post")
+        self._json_state_server_token = kwargs.get('json_state_server_token', utils.get_caveclient_token())
 
     @property
     def _headers(self) -> dict:
@@ -1084,8 +1086,6 @@ class NeuvueQueue:
         type: str, 
         resolution: int = 0,
         metadata: dict = None,
-        validate: bool = True,
-        validator: object = validator.Minnie65Validator
     ):
         """
         Post a new point to the database.
@@ -1106,16 +1106,6 @@ class NeuvueQueue:
         if metadata is None:
             metadata = {}
 
-        if validate:
-            if not isinstance(resolution, int):
-                raise ValueError(f"Resolution [{resolution}] must be an int.")
-
-            if (
-                not isinstance(coordinate, list)
-                or len(coordinate) != 3
-                or not validator.validate_point(coordinate)
-            ):
-                raise ValueError(f"Validation failed for coordinate {coordinate}.")
         created = utils.date_to_ms()
         point = {
             "active": True,
@@ -1303,8 +1293,8 @@ class NeuvueQueue:
         metadata: dict = None,
         seg_id: str = None,
         ng_state: str = None,
-        validate: bool = True,
         version: int = 1,
+        post_state: bool = True
     ):
         """
         Post a new task to the database.
@@ -1318,7 +1308,7 @@ class NeuvueQueue:
             instructions (dict)
             metadata (dict = None)
             seg_id (str = None)
-            validate (bool = True)
+            post_state (bool = True)
 
         Returns:
             dict
@@ -1332,14 +1322,20 @@ class NeuvueQueue:
 
         if not isinstance(duration, int):
             raise ValueError(f"Duration [{duration}] must be an integer.")
+        
+        if (post_state and 
+            ng_state is not None and 
+            utils.is_json(ng_state) and
+            self._json_state_server_token is not None
+            ):
 
-        if validate:
-            for point in points:
-                try:
-                    self.get_point(point)
-                except Exception as e:
-                    raise RuntimeError(f"Failed to validate point [{point}]") from e
-
+            ng_state_url = utils.post_to_state_server(
+                ng_state, 
+                self._json_state_server, 
+                self._json_state_server_token)
+        else:
+            ng_state_url = None
+        
         task = {
             "active": True,
             "closed": None,
@@ -1355,7 +1351,7 @@ class NeuvueQueue:
             "instructions": instructions,
             "created": utils.date_to_ms(),
             "seg_id": seg_id,
-            "ng_state": ng_state,
+            "ng_state": ng_state_url if ng_state_url else ng_state,
             "__v": version,
         }
         res = self._try_request(
@@ -1381,7 +1377,7 @@ class NeuvueQueue:
         metadata: dict = None,
         seg_id: str = None,
         ng_state: str = None,
-        validate: bool = True,
+        post_state: bool = True
     ):
         """
         Post a new task to the database for a given set of assignees.
@@ -1396,7 +1392,7 @@ class NeuvueQueue:
             metadata (dict = None)
             seg_id (str = None)
             ng_state (str = None)
-            validate (bool = True)
+            post_state (bool = True)
 
         Returns:
             List[dict]
@@ -1411,12 +1407,17 @@ class NeuvueQueue:
         if not isinstance(duration, int):
             raise ValueError(f"Duration [{duration}] must be an integer.")
 
-        if validate:
-            for point in points:
-                try:
-                    self.get_point(point)
-                except Exception as e:
-                    raise RuntimeError(f"Failed to validate point [{point}]") from e
+        if (post_state and 
+            ng_state is not None and
+            utils.is_json(ng_state) and 
+            self._json_state_server_token is not None
+            ):
+            ng_state_url = utils.post_to_state_server(
+                ng_state, 
+                self._json_state_server, 
+                self._json_state_server_token)
+        else:
+            ng_state_url = None
 
         tasks = []
         created = utils.date_to_ms()
@@ -1437,7 +1438,7 @@ class NeuvueQueue:
                     "instructions": instructions,
                     "created": created,
                     "seg_id": seg_id,
-                    "ng_state": ng_state,
+                    "ng_state": ng_state_url if ng_state_url else ng_state,
                     "__v": 0,
                 }
             )
