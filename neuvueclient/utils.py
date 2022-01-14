@@ -1,6 +1,9 @@
 import datetime
-
+import requests
+import backoff
 import networkx as nx
+import os
+import json 
 
 from typing import Optional
 
@@ -75,3 +78,55 @@ def unpack_uri(uri: str) -> dict:
     if uri_type not in uri_unpackers:
         return {"URI": uri}
     return uri_unpackers[uri_type](uri)
+
+def get_caveclient_token():
+    # Get the authorization token from caveclient
+    token_file = os.path.expanduser('~/.cloudvolume/secrets/cave-secret.json')
+    if os.path.exists(token_file):
+        with open(token_file, "r") as f:
+            return json.load(f).get("token")
+    
+@backoff.on_exception(backoff.expo, Exception, max_tries=3)
+def post_to_state_server(state: str, json_state_server:str, json_state_server_token:str): 
+    """Posts JSON string to state server
+
+    Args:
+        state (str): NG State string
+    
+    Returns:
+        str: url string
+    """
+
+    headers = {
+        'content-type': 'application/json',
+        'Authorization': f"Bearer {json_state_server_token}"
+    }
+
+    # Post! 
+    resp = requests.post(json_state_server, data=state, headers=headers)
+
+    if resp.status_code != 200:
+        raise Exception("POST Unsuccessful")
+    
+    # Response will contain the URL for the state you just posted
+    return str(resp.json())
+
+@backoff.on_exception(backoff.expo, Exception, max_tries=3)
+def get_from_state_server(url: str, json_state_server_token): 
+    """Gets JSON state string from state server
+
+    Args:
+        url (str): json state server link
+    Returns:
+        (str): JSON String 
+    """
+    headers = {
+        'content-type': 'application/json',
+        'Authorization': f"Bearer {json_state_server_token}"
+    }
+    resp = requests.get(url, headers=headers)
+    if resp.status_code != 200:
+        raise Exception("GET Unsuccessful")
+    
+    # TODO: Make sure its JSON String
+    return resp.text
