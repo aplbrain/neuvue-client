@@ -138,4 +138,4 @@ def get_from_state_server(url: str, json_state_server_token):
         return
     
     # TODO: Make sure its JSON String
-    return resp.text
+    return resp.text.strip()
