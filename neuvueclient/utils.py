@@ -135,7 +135,7 @@ def get_from_state_server(url: str, json_state_server_token):
     resp = requests.get(url, headers=headers)
     if resp.status_code != 200:
         print(f"Unable to get neuroglancer state from {url}. Error code: {resp.status_code}")
-        return
+        return url
     
     # TODO: Make sure its JSON String
-    return resp.text
+    return resp.text.strip()

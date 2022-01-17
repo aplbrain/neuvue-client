@@ -1139,13 +1139,14 @@ class NeuvueQueue:
        ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝
     """
     
-    def get_task(self, task_id: str, populate_points: bool = False) -> dict:
+    def get_task(self, task_id: str, populate_points: bool = False, convert_states_to_json: bool = False) -> dict:
         """
         Get a single task by its ID.
 
         Arguments:
             task_id (str): The ID of the task to retrieve
             populate_points (bool = False): Populate points for the task object.
+            convert_states_to_json (bool = False): Whether to convert a state url to JSON string
         Returns:
             dict
 
@@ -1161,8 +1162,12 @@ class NeuvueQueue:
             self._raise_for_status(res)
         except Exception as e:
             raise RuntimeError(f"Unable to get task {task_id}") from e
-
-        return res.json()
+        if convert_states_to_json: 
+            task = res.json()
+            task['ng_state'] = utils.get_from_state_server(task['ng_state'], self._json_state_server_token)
+            return task
+        else:
+            return res.json()
 
     def get_next_task(self, assignee: str, namespace: str) -> dict:
         """
@@ -1236,7 +1241,8 @@ class NeuvueQueue:
         active_default: bool = True,
         populate_points: bool = False,
         return_states: bool = True,
-        return_metadata: bool = True
+        return_metadata: bool = True,
+        convert_states_to_json: bool = True
     ):
         """
         Get a list of tasks.
@@ -1249,6 +1255,7 @@ class NeuvueQueue:
             sort (str): attribute to sort by, default is priority 
             return_states (bool): whether to populate tasks' ng states states 
             return_metadata (bool): whether to populate tasks' metadata
+            convert_states_to_json (bool): whether to convert ng_states to json strings
         Returns:
             pd.DataFrame
 
@@ -1279,6 +1286,11 @@ class NeuvueQueue:
             res.created = pd.to_datetime(res.created, unit="ms")
             res.opened = pd.to_datetime(res.opened, unit="ms")
             res.closed = pd.to_datetime(res.closed, unit="ms")
+
+            # Convert states to JSON if they are in URL format 
+            if convert_states_to_json and return_states:
+                _convert_state = lambda x: utils.get_from_state_server(x, self._json_state_server_token) if not utils.is_json(x) else x
+                res['ng_state'] = res['ng_state'].apply( _convert_state)
             return res
 
     def post_task(
