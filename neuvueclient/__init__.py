@@ -202,8 +202,16 @@ class NeuvueQueue:
                 "points",
                 "status",
                 "seg_id",
-                "ng_state",
                 "tags",
+                "ng_state"
+            ],
+            "task_patch": [
+              "task_id",
+              "assignee",
+              "seg_id",
+              "timestamp",
+              "patch",
+              "active"
             ]
         }[datatype]
 
@@ -1512,3 +1520,158 @@ class NeuvueQueue:
                 self._raise_for_status(res)
             except Exception as e:
                 raise RuntimeError(f"Unable to patch task {task_id}") from e
+
+    '''
+    ████████╗ █████╗ ███████╗██╗  ██╗    ██████╗  █████╗ ████████╗ ██████╗██╗  ██╗███████╗███████╗
+    ╚══██╔══╝██╔══██╗██╔════╝██║ ██╔╝    ██╔══██╗██╔══██╗╚══██╔══╝██╔════╝██║  ██║██╔════╝██╔════╝
+       ██║   ███████║███████╗█████╔╝     ██████╔╝███████║   ██║   ██║     ███████║█████╗  ███████╗
+       ██║   ██╔══██║╚════██║██╔═██╗     ██╔═══╝ ██╔══██║   ██║   ██║     ██╔══██║██╔══╝  ╚════██║
+       ██║   ██║  ██║███████║██║  ██╗    ██║     ██║  ██║   ██║   ╚██████╗██║  ██║███████╗███████║
+       ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝    ╚═╝     ╚═╝  ╚═╝   ╚═╝    ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝
+    '''
+
+    def get_task_patches(
+        self, 
+        sieve: dict = None, 
+        limit: int = None, 
+        active_default: bool = True,
+        # sort: str = "timestamp"
+    ):
+        """
+        Get a list of task patches.
+
+        Arguments:
+            sieve (dict): See sieve documentation.
+            limit (int: None): The maximum number of items to return.
+            active_default (bool: True): If `active` is not a key included in sieve, set it to this
+            sort (str): attribute to sort by, default is timestamp
+        Returns:
+            pd.DataFrame
+
+        """
+        if sieve is None:
+            sieve = {"active": active_default}
+        if "active" not in sieve:
+            sieve["active"] = active_default
+
+        # sort = [sort]
+        
+        try:
+            depaginated_task_patches = self.depaginate(
+                # "taskpatches", sieve, limit=limit, sort=sort
+                "taskpatches", sieve, limit=limit
+            )
+        except Exception as e:
+            raise RuntimeError("Unable to get task patches") from e
+        else:
+            res = pd.DataFrame(depaginated_task_patches)
+
+            # If an empty response, then return an empty dataframe:
+            if len(res) == 0:
+                return pd.DataFrame([], columns=self.dtype_columns("task_patch"))
+
+            res.set_index("_id", inplace=True)
+            res.created = pd.to_datetime(res.created, unit="ms")
+            res.submitted = pd.to_datetime(res.submitted, unit="ms")
+            return res
+
+
+    def get_task_patch(self, task_patch_id: str) -> dict:
+        """
+        Get a single task patch by its ID.
+
+        Arguments:
+            task_patch_id (str): The ID of the task patch to retrieve
+        Returns:
+            dict
+
+        """
+        res = self._try_request(
+            lambda: requests.get(
+                self.url(f"/taskpatches/{task_patch_id}"), 
+                headers=self._headers
+            )
+        )
+        try:
+            self._raise_for_status(res)
+        except Exception as e:
+            raise RuntimeError(f"Unable to get task patch {task_patch_id}") from e
+
+        return res.json()
+
+    # def post_task(
+    #     self,
+    #     author: str,
+    #     assignee: str,
+    #     priority: int,
+    #     namespace: str,
+    #     instructions: dict,
+    #     points: List[str] = None,
+    #     duration: int = 0,
+    #     metadata: dict = None,
+    #     seg_id: str = None,
+    #     ng_state: str = None,
+    #     validate: bool = True,
+    # ):
+    #     """
+    #     Post a new task to the database.
+
+    #     Arguments:
+    #         points List(str)
+    #         author (str)
+    #         assignee (str)
+    #         priority (int)
+    #         namespace (str)
+    #         instructions (dict)
+    #         metadata (dict = None)
+    #         seg_id (str = None)
+    #         validate (bool = True)
+
+    #     Returns:
+    #         dict
+
+    #     """
+    #     if metadata is None:
+    #         metadata = {}
+
+    #     if not isinstance(priority, int):
+    #         raise ValueError(f"Priority [{priority}] must be an integer.")
+
+    #     if not isinstance(duration, int):
+    #         raise ValueError(f"Duration [{duration}] must be an integer.")
+
+    #     if validate:
+    #         for point in points:
+    #             try:
+    #                 self.get_point(point)
+    #             except Exception as e:
+    #                 raise RuntimeError(f"Failed to validate point [{point}]") from e
+
+    #     task = {
+    #         "active": True,
+    #         "closed": None,
+    #         "metadata": metadata,
+    #         "opened": None,
+    #         "status": "pending",
+    #         "points": points,
+    #         "priority": priority,
+    #         "duration": duration,
+    #         "author": author,
+    #         "assignee": assignee,
+    #         "namespace": namespace,
+    #         "instructions": instructions,
+    #         "created": utils.date_to_ms(),
+    #         "seg_id": seg_id,
+    #         "ng_state": ng_state,
+    #         "__v": 0,
+    #     }
+    #     res = self._try_request(
+    #         lambda: requests.post(
+    #             self.url("/tasks"), data=json.dumps(task), headers=self._headers
+    #         )
+    #     )
+    #     try:
+    #         self._raise_for_status(res)
+    #     except Exception as e:
+    #         raise RuntimeError("Failed to post task") from e
+    #     return res.json()
