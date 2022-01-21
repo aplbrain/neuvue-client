@@ -205,13 +205,10 @@ class NeuvueQueue:
                 "tags",
                 "ng_state"
             ],
-            "task_patch": [
+            "differ_stack": [
+              "active",
               "task_id",
-              "assignee",
-              "seg_id",
-              "timestamp",
-              "patch",
-              "active"
+              "differ_stack"
             ]
         }[datatype]
 
@@ -1522,80 +1519,73 @@ class NeuvueQueue:
                 raise RuntimeError(f"Unable to patch task {task_id}") from e
 
     '''
-    ████████╗ █████╗ ███████╗██╗  ██╗    ██████╗  █████╗ ████████╗ ██████╗██╗  ██╗███████╗███████╗
-    ╚══██╔══╝██╔══██╗██╔════╝██║ ██╔╝    ██╔══██╗██╔══██╗╚══██╔══╝██╔════╝██║  ██║██╔════╝██╔════╝
-       ██║   ███████║███████╗█████╔╝     ██████╔╝███████║   ██║   ██║     ███████║█████╗  ███████╗
-       ██║   ██╔══██║╚════██║██╔═██╗     ██╔═══╝ ██╔══██║   ██║   ██║     ██╔══██║██╔══╝  ╚════██║
-       ██║   ██║  ██║███████║██║  ██╗    ██║     ██║  ██║   ██║   ╚██████╗██║  ██║███████╗███████║
-       ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝    ╚═╝     ╚═╝  ╚═╝   ╚═╝    ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝
+    ██████╗ ██╗███████╗███████╗███████╗██████╗     ███████╗████████╗ █████╗  ██████╗██╗  ██╗███████╗
+    ██╔══██╗██║██╔════╝██╔════╝██╔════╝██╔══██╗    ██╔════╝╚══██╔══╝██╔══██╗██╔════╝██║ ██╔╝██╔════╝
+    ██║  ██║██║█████╗  █████╗  █████╗  ██████╔╝    ███████╗   ██║   ███████║██║     █████╔╝ ███████╗
+    ██║  ██║██║██╔══╝  ██╔══╝  ██╔══╝  ██╔══██╗    ╚════██║   ██║   ██╔══██║██║     ██╔═██╗ ╚════██║
+    ██████╔╝██║██║     ██║     ███████╗██║  ██║    ███████║   ██║   ██║  ██║╚██████╗██║  ██╗███████║
+    ╚═════╝ ╚═╝╚═╝     ╚═╝     ╚══════╝╚═╝  ╚═╝    ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝
     '''
 
-    def get_task_patches(
+    def get_differ_stacks(
         self, 
         sieve: dict = None, 
         limit: int = None, 
         active_default: bool = True,
-        # sort: str = "timestamp"
     ):
         """
-        Get a list of task patches.
+        Get all differ stacks.
 
         Arguments:
             sieve (dict): See sieve documentation.
             limit (int: None): The maximum number of items to return.
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
-            sort (str): attribute to sort by, default is timestamp
         Returns:
             pd.DataFrame
-
         """
+
         if sieve is None:
             sieve = {"active": active_default}
         if "active" not in sieve:
             sieve["active"] = active_default
 
-        # sort = [sort]
-        
         try:
-            depaginated_task_patches = self.depaginate(
-                # "taskpatches", sieve, limit=limit, sort=sort
-                "taskpatches", sieve, limit=limit
+            depaginated_differ_stacks = self.depaginate(
+                "differstacks", sieve, limit=limit
             )
         except Exception as e:
-            raise RuntimeError("Unable to get task patches") from e
+            raise RuntimeError("Unable to get differ stacks") from e
         else:
-            res = pd.DataFrame(depaginated_task_patches)
+            res = pd.DataFrame(depaginated_differ_stacks)
 
             # If an empty response, then return an empty dataframe:
             if len(res) == 0:
-                return pd.DataFrame([], columns=self.dtype_columns("task_patch"))
+                return pd.DataFrame([], columns=self.dtype_columns("differ_stack"))
 
             res.set_index("_id", inplace=True)
-            res.created = pd.to_datetime(res.created, unit="ms")
-            res.submitted = pd.to_datetime(res.submitted, unit="ms")
             return res
 
 
-    def get_task_patch(self, task_patch_id: str) -> dict:
+    def get_differ_stack(self, differ_stack_id: str) -> dict:
         """
-        Get a single task patch by its ID.
+        Get a single differ stack by its ID.
 
         Arguments:
-            task_patch_id (str): The ID of the task patch to retrieve
+            differ_stack_id (str): The ID of the differ stack to retrieve
         Returns:
             dict
 
         """
         res = self._try_request(
             lambda: requests.get(
-                self.url(f"/taskpatches/{task_patch_id}"), 
+                self.url(f"/differstacks/{differ_stack_id}"), 
                 headers=self._headers
             )
         )
         try:
             self._raise_for_status(res)
         except Exception as e:
-            raise RuntimeError(f"Unable to get task patch {task_patch_id}") from e
+            raise RuntimeError(f"Unable to get differ stack {differ_stack_id}") from e
 
         return res.json()
 
