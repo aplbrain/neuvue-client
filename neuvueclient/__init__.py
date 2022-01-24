@@ -27,7 +27,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import datetime
 import json
@@ -1589,79 +1589,35 @@ class NeuvueQueue:
 
         return res.json()
 
-    # def post_task(
-    #     self,
-    #     author: str,
-    #     assignee: str,
-    #     priority: int,
-    #     namespace: str,
-    #     instructions: dict,
-    #     points: List[str] = None,
-    #     duration: int = 0,
-    #     metadata: dict = None,
-    #     seg_id: str = None,
-    #     ng_state: str = None,
-    #     validate: bool = True,
-    # ):
-    #     """
-    #     Post a new task to the database.
+    def post_differ_stack(
+        self,
+        task_id: str,
+        differ_stack: List[Dict]
+    ):
+        """
+        Post a new differ stack to the database.
 
-    #     Arguments:
-    #         points List(str)
-    #         author (str)
-    #         assignee (str)
-    #         priority (int)
-    #         namespace (str)
-    #         instructions (dict)
-    #         metadata (dict = None)
-    #         seg_id (str = None)
-    #         validate (bool = True)
+        Arguments:
+            task_id (str)
+            differ_stack List[Dict]
 
-    #     Returns:
-    #         dict
+        Returns:
+            dict
 
-    #     """
-    #     if metadata is None:
-    #         metadata = {}
+        """
 
-    #     if not isinstance(priority, int):
-    #         raise ValueError(f"Priority [{priority}] must be an integer.")
-
-    #     if not isinstance(duration, int):
-    #         raise ValueError(f"Duration [{duration}] must be an integer.")
-
-    #     if validate:
-    #         for point in points:
-    #             try:
-    #                 self.get_point(point)
-    #             except Exception as e:
-    #                 raise RuntimeError(f"Failed to validate point [{point}]") from e
-
-    #     task = {
-    #         "active": True,
-    #         "closed": None,
-    #         "metadata": metadata,
-    #         "opened": None,
-    #         "status": "pending",
-    #         "points": points,
-    #         "priority": priority,
-    #         "duration": duration,
-    #         "author": author,
-    #         "assignee": assignee,
-    #         "namespace": namespace,
-    #         "instructions": instructions,
-    #         "created": utils.date_to_ms(),
-    #         "seg_id": seg_id,
-    #         "ng_state": ng_state,
-    #         "__v": 0,
-    #     }
-    #     res = self._try_request(
-    #         lambda: requests.post(
-    #             self.url("/tasks"), data=json.dumps(task), headers=self._headers
-    #         )
-    #     )
-    #     try:
-    #         self._raise_for_status(res)
-    #     except Exception as e:
-    #         raise RuntimeError("Failed to post task") from e
-    #     return res.json()
+        differ_stack_object = {
+            "active": True,
+            "task_id": task_id,
+            "differ_stack": differ_stack
+        }
+        res = self._try_request(
+            lambda: requests.post(
+                self.url("/differstacks"), data=json.dumps(differ_stack_object), headers=self._headers
+            )
+        )
+        try:
+            self._raise_for_status(res)
+        except Exception as e:
+            raise RuntimeError("Failed to post differ stack") from e
+        return res.json()
