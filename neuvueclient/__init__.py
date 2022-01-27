@@ -1294,7 +1294,13 @@ class NeuvueQueue:
 
             # Convert states to JSON if they are in URL format 
             if convert_states_to_json and return_states:
-                _convert_state = lambda x: utils.get_from_state_server(x, self._json_state_server_token) if not utils.is_json(x) else x
+                
+                def _convert_state(x):
+                    try:
+                        return utils.get_from_state_server(x, self._json_state_server_token)
+                    except: 
+                        return x
+
                 res['ng_state'] = res['ng_state'].apply( _convert_state)
             return res
 
