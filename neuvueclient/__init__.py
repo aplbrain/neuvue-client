@@ -1270,12 +1270,14 @@ class NeuvueQueue:
             sieve = {"active": active_default}
         if "active" not in sieve:
             sieve["active"] = active_default
-        if "created" in sieve:
-            if len(sieve["created"]) > 1:
-                assert sieve["created"]['$gt'] < sieve["created"]['$lt'], "$gt argument must be less than $lt if both are used."
-            for key in sieve["created"].keys():
-                assert type(sieve["created"][key]) == datetime.datetime, "Please enter a datetime.datetime object."
-                sieve["created"][key] = round(sieve["created"][key].timestamp()*1000)
+        time_queries = [key for key in sieve.keys() if key in ['created', 'opened', 'closed']]
+        if time_queries:
+            for key in time_queries:
+                if len(sieve[key]) > 1:
+                    assert sieve[key]['$gt'] < sieve[key]['$lt'], "$gt argument must be less than $lt if both are used."
+                for query in sieve[key].keys():
+                    assert type(sieve[key][query]) == datetime.datetime, "Please enter a datetime.datetime object."
+                    sieve[key][query] = round(sieve[key][query].timestamp()*1000)
         
         populate = ["points"] if populate_points else None
         select = self.dtype_columns("task")
