@@ -29,6 +29,7 @@ limitations under the License.
 """
 from typing import Any, Callable, Dict, List, Optional
 
+import time
 import datetime
 import json
 import warnings
@@ -1269,6 +1270,12 @@ class NeuvueQueue:
             sieve = {"active": active_default}
         if "active" not in sieve:
             sieve["active"] = active_default
+        if "created" in sieve:
+            if len(sieve["created"]) > 1:
+                assert sieve["created"]['$gt'] < sieve["created"]['$lt'], "$gt argument must be less than $lt if both are used."
+            for key in sieve["created"].keys():
+                assert type(sieve["created"][key]) == datetime.datetime, "Please enter a datetime.datetime object."
+                sieve["created"][key] = round(sieve["created"][key].timestamp()*1000)
         
         populate = ["points"] if populate_points else None
         select = self.dtype_columns("task")
