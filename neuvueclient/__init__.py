@@ -27,9 +27,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-from typing import Any, Callable, List, Optional
+
 import http
 import ast
+from typing import Any, Callable, Dict, List, Optional
 
 import datetime
 import json
@@ -42,7 +43,6 @@ import requests
 
 from . import utils
 from . import version
-from . import validator
 
 __version__ = version.__version__
 
@@ -63,6 +63,11 @@ class NeuvueQueue:
         """
         self.config = configparser.ConfigParser()
         self._url = url.rstrip("/")
+        
+        # JSON State Server Info
+        self._json_state_server = kwargs.get('json_state_server', "https://global.daf-apis.com/nglstate/post")
+        self._json_state_server_token = kwargs.get('json_state_server_token', utils.get_caveclient_token())
+
         if "token" in kwargs:
             auth_method = "Inline Arguments"
             self._refresh_token = kwargs["refresh_token"]
@@ -187,57 +192,6 @@ class NeuvueQueue:
         Get a list of columns for a datatype.
         """
         return {
-            "graph": [
-                "active",
-                "author",
-                "decisions",
-                "metadata",
-                "namespace",
-                "parent",
-                "structure",
-                "submitted",
-                "volume",
-                "graph",
-            ],
-            "volume": [
-                "__v",
-                "active",
-                "author",
-                "bounds",
-                "metadata",
-                "name",
-                "namespace",
-                "resolution",
-                "uri",
-            ],
-            "question": [
-                "__v",
-                "active",
-                "artifacts",
-                "assignee",
-                "author",
-                "closed",
-                "created",
-                "instructions",
-                "metadata",
-                "namespace",
-                "opened",
-                "priority",
-                "status",
-                "volume",
-            ],
-            "node": [
-                "active",
-                "author",
-                "coordinate",
-                "created",
-                "decisions",
-                "metadata",
-                "namespace",
-                "submitted",
-                "type",
-                "volume",
-            ],
             "point": [
                 "__v",
                 "active",
@@ -266,7 +220,13 @@ class NeuvueQueue:
                 "points",
                 "status",
                 "seg_id",
+                "tags",
                 "ng_state"
+            ],
+            "differ_stack": [
+              "active",
+              "task_id",
+              "differ_stack"
             ]
         }[datatype]
 
@@ -424,8 +384,6 @@ class NeuvueQueue:
         type: str, 
         resolution: int = 0,
         metadata: dict = None,
-        validate: bool = True,
-        validator: object = validator.Minnie65Validator
     ):
         """
         Post a new point to the database.
@@ -446,17 +404,6 @@ class NeuvueQueue:
         if metadata is None:
             metadata = {}
 
-        if validate:
-            if not isinstance(resolution, int):
-                raise ValueError(f"Resolution [{resolution}] must be an int.")
-
-            if (
-                not isinstance(coordinate, list)
-                or len(coordinate) != 3
-                or not validator.validate_point(coordinate)
-            ):
-                raise ValueError(f"Validation failed for coordinate {coordinate}.")
-        
         created = utils.date_to_ms()
         point = {
             "active": True,
@@ -490,13 +437,14 @@ class NeuvueQueue:
        ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝
     """
     
-    def get_task(self, task_id: str, populate_points: bool = False) -> dict:
+    def get_task(self, task_id: str, populate_points: bool = False, convert_states_to_json: bool = False) -> dict:
         """
         Get a single task by its ID.
 
         Arguments:
             task_id (str): The ID of the task to retrieve
             populate_points (bool = False): Populate points for the task object.
+            convert_states_to_json (bool = False): Whether to convert a state url to JSON string
         Returns:
             dict
 
@@ -512,8 +460,12 @@ class NeuvueQueue:
             self._raise_for_status(res)
         except Exception as e:
             raise RuntimeError(f"Unable to get task {task_id}") from e
-
-        return res.json()
+        if convert_states_to_json: 
+            task = res.json()
+            task['ng_state'] = utils.get_from_state_server(task['ng_state'], self._json_state_server_token)
+            return task
+        else:
+            return res.json()
 
     def get_next_task(self, assignee: str, namespace: str) -> dict:
         """
@@ -530,52 +482,33 @@ class NeuvueQueue:
             dict
 
         """
-        query = json.dumps(
-            {
+        query = {
                 "assignee": assignee,
                 "namespace": namespace,
                 "active": True,
                 "status": "open",
             }
-        )
-        res = self._try_request(
-            lambda: requests.get(
-                self.url(f"/tasks"), headers=self._headers, params={"q": query}
-            )
-        )
+        sort = ['-priority']
         try:
-            self._raise_for_status(res)
+            res = self.depaginate("tasks", query, sort=sort, limit=1)
         except Exception as e:
             raise RuntimeError("Unable to get opened tasks") from e
 
-        r = res.json()
+        if len(res):
+            return res[0]
 
-        if len(r):
-            return r[0]
-
-        query = json.dumps(
-            {
+        query = {
                 "assignee": assignee,
                 "namespace": namespace,
                 "active": True,
                 "status": "pending",
             }
-        )
-        res = self._try_request(
-            lambda: requests.get(
-                self.url("/tasks"),
-                headers=self._headers,
-                params={"q": query, "sort": "-priority"},
-            )
-        )
         try:
-            self._raise_for_status(res)
+            res = self.depaginate("tasks", query, sort=sort, limit=1)
         except Exception as e:
             raise RuntimeError("Unable to get opened tasks") from e
 
-        r = res.json()
-
-        return r[0] if r else None
+        return res[0] if res else None
 
     def delete_task(self, task_id: str) -> str:
         """
@@ -604,7 +537,10 @@ class NeuvueQueue:
         sieve: dict = None, 
         limit: int = None, 
         active_default: bool = True,
-        populate_points: bool = False
+        populate_points: bool = False,
+        return_states: bool = True,
+        return_metadata: bool = True,
+        convert_states_to_json: bool = True
     ):
         """
         Get a list of tasks.
@@ -614,7 +550,10 @@ class NeuvueQueue:
             limit (int: None): The maximum number of items to return.
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
             populate_points (bool): Whether to populate the tasks' point ids with their corresponding point object.
-
+            sort (str): attribute to sort by, default is priority 
+            return_states (bool): whether to populate tasks' ng states states 
+            return_metadata (bool): whether to populate tasks' metadata
+            convert_states_to_json (bool): whether to convert ng_states to json strings
         Returns:
             pd.DataFrame
 
@@ -625,9 +564,14 @@ class NeuvueQueue:
             sieve["active"] = active_default
         
         populate = ["points"] if populate_points else None
-        
+        select = self.dtype_columns("task")
+        if not return_states:
+            select.remove('ng_state')
+        if not return_metadata:
+            select.remove('metadata')
+
         try:
-            depaginated_tasks = self.depaginate("tasks", sieve, populate=populate, limit=limit)
+            depaginated_tasks = self.depaginate("tasks", sieve, select=select, populate=populate, limit=limit)
         except Exception as e:
             raise RuntimeError("Unable to get tasks") from e
         else:
@@ -636,11 +580,21 @@ class NeuvueQueue:
             # If an empty response, then return an empty dataframe:
             if len(res) == 0:
                 return pd.DataFrame([], columns=self.dtype_columns("task"))
-
             res.set_index("_id", inplace=True)
             res.created = pd.to_datetime(res.created, unit="ms")
             res.opened = pd.to_datetime(res.opened, unit="ms")
             res.closed = pd.to_datetime(res.closed, unit="ms")
+
+            # Convert states to JSON if they are in URL format 
+            if convert_states_to_json and return_states:
+                
+                def _convert_state(x):
+                    try:
+                        return utils.get_from_state_server(x, self._json_state_server_token)
+                    except: 
+                        return x
+
+                res['ng_state'] = res['ng_state'].apply( _convert_state)
             return res
 
     def post_task(
@@ -655,7 +609,8 @@ class NeuvueQueue:
         metadata: dict = None,
         seg_id: str = None,
         ng_state: str = None,
-        validate: bool = True,
+        version: int = 1,
+        post_state: bool = True
     ):
         """
         Post a new task to the database.
@@ -669,7 +624,7 @@ class NeuvueQueue:
             instructions (dict)
             metadata (dict = None)
             seg_id (str = None)
-            validate (bool = True)
+            post_state (bool = True)
 
         Returns:
             dict
@@ -683,14 +638,20 @@ class NeuvueQueue:
 
         if not isinstance(duration, int):
             raise ValueError(f"Duration [{duration}] must be an integer.")
+        
+        if (post_state and 
+            ng_state is not None and 
+            utils.is_json(ng_state) and
+            self._json_state_server_token is not None
+            ):
 
-        if validate:
-            for point in points:
-                try:
-                    self.get_point(point)
-                except Exception as e:
-                    raise RuntimeError(f"Failed to validate point [{point}]") from e
-
+            ng_state_url = utils.post_to_state_server(
+                ng_state, 
+                self._json_state_server, 
+                self._json_state_server_token)
+        else:
+            ng_state_url = None
+        
         task = {
             "active": True,
             "closed": None,
@@ -706,8 +667,8 @@ class NeuvueQueue:
             "instructions": instructions,
             "created": utils.date_to_ms(),
             "seg_id": seg_id,
-            "ng_state": ng_state,
-            "__v": 0,
+            "ng_state": ng_state_url if ng_state_url else ng_state,
+            "__v": version,
         }
         res = self._try_request(
             lambda: requests.post(
@@ -732,7 +693,7 @@ class NeuvueQueue:
         metadata: dict = None,
         seg_id: str = None,
         ng_state: str = None,
-        validate: bool = True,
+        post_state: bool = True
     ):
         """
         Post a new task to the database for a given set of assignees.
@@ -747,7 +708,7 @@ class NeuvueQueue:
             metadata (dict = None)
             seg_id (str = None)
             ng_state (str = None)
-            validate (bool = True)
+            post_state (bool = True)
 
         Returns:
             List[dict]
@@ -762,12 +723,17 @@ class NeuvueQueue:
         if not isinstance(duration, int):
             raise ValueError(f"Duration [{duration}] must be an integer.")
 
-        if validate:
-            for point in points:
-                try:
-                    self.get_point(point)
-                except Exception as e:
-                    raise RuntimeError(f"Failed to validate point [{point}]") from e
+        if (post_state and 
+            ng_state is not None and
+            utils.is_json(ng_state) and 
+            self._json_state_server_token is not None
+            ):
+            ng_state_url = utils.post_to_state_server(
+                ng_state, 
+                self._json_state_server, 
+                self._json_state_server_token)
+        else:
+            ng_state_url = None
 
         tasks = []
         created = utils.date_to_ms()
@@ -788,7 +754,7 @@ class NeuvueQueue:
                     "instructions": instructions,
                     "created": created,
                     "seg_id": seg_id,
-                    "ng_state": ng_state,
+                    "ng_state": ng_state_url if ng_state_url else ng_state,
                     "__v": 0,
                 }
             )
@@ -835,6 +801,10 @@ class NeuvueQueue:
             return 
 
         for key, value in kwargs.items():
+            if key == 'metadata':
+                old_metadata = self.get_task(task_id)['metadata']
+                value.update(old_metadata)
+
             stri = f"/tasks/{task_id}/{key}"
             res = self._try_request( 
                 lambda: requests.patch(
@@ -847,4 +817,106 @@ class NeuvueQueue:
             except Exception as e:
                 raise RuntimeError(f"Unable to patch task {task_id}") from e
 
+    '''
+    ██████╗ ██╗███████╗███████╗███████╗██████╗     ███████╗████████╗ █████╗  ██████╗██╗  ██╗███████╗
+    ██╔══██╗██║██╔════╝██╔════╝██╔════╝██╔══██╗    ██╔════╝╚══██╔══╝██╔══██╗██╔════╝██║ ██╔╝██╔════╝
+    ██║  ██║██║█████╗  █████╗  █████╗  ██████╔╝    ███████╗   ██║   ███████║██║     █████╔╝ ███████╗
+    ██║  ██║██║██╔══╝  ██╔══╝  ██╔══╝  ██╔══██╗    ╚════██║   ██║   ██╔══██║██║     ██╔═██╗ ╚════██║
+    ██████╔╝██║██║     ██║     ███████╗██║  ██║    ███████║   ██║   ██║  ██║╚██████╗██║  ██╗███████║
+    ╚═════╝ ╚═╝╚═╝     ╚═╝     ╚══════╝╚═╝  ╚═╝    ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝
+    '''
+
+    def get_differ_stacks(
+        self, 
+        sieve: dict = None, 
+        limit: int = None, 
+        active_default: bool = True,
+    ):
+        """
+        Get all differ stacks.
+
+        Arguments:
+            sieve (dict): See sieve documentation.
+            limit (int: None): The maximum number of items to return.
+            active_default (bool: True): If `active` is not a key included in sieve, set it to this
+        Returns:
+            pd.DataFrame
+        """
+
+        if sieve is None:
+            sieve = {"active": active_default}
+        if "active" not in sieve:
+            sieve["active"] = active_default
+
+        try:
+            depaginated_differ_stacks = self.depaginate(
+                "differstacks", sieve, limit=limit
+            )
+        except Exception as e:
+            raise RuntimeError("Unable to get differ stacks") from e
+        else:
+            res = pd.DataFrame(depaginated_differ_stacks)
+
+            # If an empty response, then return an empty dataframe:
+            if len(res) == 0:
+                return pd.DataFrame([], columns=self.dtype_columns("differ_stack"))
+
+            res.set_index("_id", inplace=True)
+            return res
+
+
+    def get_differ_stack(self, differ_stack_id: str) -> dict:
+        """
+        Get a single differ stack by its ID.
+
+        Arguments:
+            differ_stack_id (str): The ID of the differ stack to retrieve
+        Returns:
+            dict
+
+        """
+        res = self._try_request(
+            lambda: requests.get(
+                self.url(f"/differstacks/{differ_stack_id}"), 
+                headers=self._headers
+            )
+        )
+        try:
+            self._raise_for_status(res)
+        except Exception as e:
+            raise RuntimeError(f"Unable to get differ stack {differ_stack_id}") from e
+
+        return res.json()
+
+    def post_differ_stack(
+        self,
+        task_id: str,
+        differ_stack: List[Dict]
+    ):
+        """
+        Post a new differ stack to the database.
+
+        Arguments:
+            task_id (str)
+            differ_stack List[Dict]
+
+        Returns:
+            dict
+
+        """
+
+        differ_stack_object = {
+            "active": True,
+            "task_id": task_id,
+            "differ_stack": differ_stack
+        }
+        res = self._try_request(
+            lambda: requests.post(
+                self.url("/differstacks"), data=json.dumps(differ_stack_object), headers=self._headers
+            )
+        )
+        try:
+            self._raise_for_status(res)
+        except Exception as e:
+            raise RuntimeError("Failed to post differ stack") from e
         return res.json()
