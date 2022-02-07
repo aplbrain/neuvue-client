@@ -1259,7 +1259,7 @@ class NeuvueQueue:
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
             populate_points (bool): Whether to populate the tasks' point ids with their corresponding point object.
             sort (str): attribute to sort by, default is priority 
-            return_states (bool): whether to populate tasks' ng states states 
+            return_states (bool): whether to populate tasks' ng states
             return_metadata (bool): whether to populate tasks' metadata
             convert_states_to_json (bool): whether to convert ng_states to json strings
         Returns:
