@@ -53,7 +53,7 @@ class NeuvueQueue:
     See neuvueclient/__init__.py for more documentation.
 
     """
-    def __init__(self, url: str, queue_url="dev-queue.neuvue.io", **kwargs) -> None:
+    def __init__(self, url: str, **kwargs) -> None:
         """
         Create a new neuvuequeue client.
 
@@ -62,8 +62,7 @@ class NeuvueQueue:
 
         """
         self.config = configparser.ConfigParser()
-        self.queue_url = queue_url
-        auth_method = ""
+        self._url = url.rstrip("/")
         if "token" in kwargs:
             auth_method = "Inline Arguments"
             self._refresh_token = kwargs["refresh_token"]
@@ -89,23 +88,22 @@ class NeuvueQueue:
             self._access_token = self.config["CONFIG"]["access_token"]
 
         print(f"Auth method: {auth_method}")
-        self._url = url.rstrip("/")
         self._custom_headers: dict = {}
         if "headers" in kwargs:
             self._custom_headers.update(kwargs["headers"])
     
-    def login(self, authorization_token=None):
+    def login(self):
         """
         Generates a new authorization token and saves it to a config file.
         """
 
-        link = "https://dev-oe-jgl7m.us.auth0.com/authorize?response_type=code&client_id=BdwlItpSZeMrd2ZJwaVrmn0VILYhmriK&redirect_uri=https://app.neuvue.io/&scope=openid%20profile%20email%20offline_access&audience=https://queue.neuvue.io"
+        link = "https://dev-oe-jgl7m.us.auth0.com/authorize?response_type=code&client_id=BdwlItpSZeMrd2ZJwaVrmn0VILYhmriK&redirect_uri=https://app.neuvue.io/token&scope=openid%20profile%20email%20offline_access&audience=https://queue.neuvue.io"
         
         # Verify code 
         code = input(f"Go to this link: \n {link} \n and log in using your google account, then copy the text the Token page here: ")
         
         # Make a request to neuvuequeue to get the authorization token
-        conn = http.client.HTTPSConnection(self.queue_url)
+        conn = http.client.HTTPSConnection(self._url)
 
         payload = "{\"code\":\"" + code + "\",\"code_type\":\"authorization\"}"
 
@@ -135,7 +133,7 @@ class NeuvueQueue:
         """
         Use the refresh token to generate a new one. 
         """
-        conn = http.client.HTTPSConnection(self.queue_url)
+        conn = http.client.HTTPSConnection(self._url)
         payload = "{\"code\":\"" + refresh + "\",\"code_type\":\"refresh\"}"
 
         headers = { 'content-type': "application/json" }
@@ -154,7 +152,7 @@ class NeuvueQueue:
         except OSError:
             pass
 
-        with open(os.path.expanduser("neuvuequeue.cfg"), 'w') as configfile:
+        with open(os.path.expanduser("~/.neuvuequeue/neuvuequeue.cfg"), 'w') as configfile:
             self.config.write(configfile)
         
         return access_token
