@@ -63,7 +63,7 @@ class NeuvueQueue:
         """
         self.config = configparser.ConfigParser()
         self._url = url.rstrip("/")
-        
+        self.queue_address = self._url.split('//')[1]
         # JSON State Server Info
         self._json_state_server = kwargs.get('json_state_server', "https://global.daf-apis.com/nglstate/post")
         self._json_state_server_token = kwargs.get('json_state_server_token', utils.get_caveclient_token())
@@ -108,7 +108,7 @@ class NeuvueQueue:
         code = input(f"Go to this link: \n {link} \n and log in using your google account, then copy the text the Token page here: ")
         
         # Make a request to neuvuequeue to get the authorization token
-        conn = http.client.HTTPSConnection(self._url)
+        conn = http.client.HTTPSConnection(self.queue_address)
 
         payload = "{\"code\":\"" + code + "\",\"code_type\":\"authorization\"}"
 
@@ -119,9 +119,8 @@ class NeuvueQueue:
         data = res.read()
         response = data.decode("utf-8")
         response_dict = ast.literal_eval(response)
-
-        self.config['CONFIG'] = {'refresh_token': response_dict["refresh_token"],
-                                 'access_token': response_dict["access_token"]}
+        self.config['CONFIG'] = {'refresh_token': response_dict.get("refresh_token", ""),
+                                 'access_token': response_dict.get("access_token", "")}
         try:
              os.mkdir(os.path.expanduser("~/.neuvuequeue"))
         except OSError:
@@ -138,7 +137,7 @@ class NeuvueQueue:
         """
         Use the refresh token to generate a new one. 
         """
-        conn = http.client.HTTPSConnection(self._url)
+        conn = http.client.HTTPSConnection(self.queue_address)
         payload = "{\"code\":\"" + refresh + "\",\"code_type\":\"refresh\"}"
 
         headers = { 'content-type': "application/json" }
