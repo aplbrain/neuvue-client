@@ -69,16 +69,16 @@ class NeuvueQueue:
         self._json_state_server_token = kwargs.get('json_state_server_token', utils.get_caveclient_token())
 
         if "token" in kwargs:
-            auth_method = "Inline Arguments"
+            self.auth_method = "Inline Arguments"
             self._refresh_token = kwargs["refresh_token"]
             self._access_token = kwargs["access_token"] 
         
         elif ("NEUVUEQUEUE_REFRESH_TOKEN" in os.environ) and ("NEUVUEQUEUE_ACCESS_TOKEN" in os.environ):
-            auth_method = "Environment Variables"
+            self.auth_method = "Environment Variables"
             self._refresh_token = os.environ["NEUVUEQUEUE_REFRESH_TOKEN"]
             self._access_token = os.environ["NEUVUEQUEUE_ACCESS_TOKEN"] 
         else:
-            auth_method = "Config File"
+            self.auth_method = "Config File"
             try:
                 self.config.read(os.path.expanduser("~/.neuvuequeue/neuvuequeue.cfg"))
                 self._refresh_token = self.config["CONFIG"]["refresh_token"]
@@ -92,7 +92,7 @@ class NeuvueQueue:
 
             self._access_token = self.config["CONFIG"]["access_token"]
 
-        print(f"Auth method: {auth_method}")
+        print(f"Auth method: {self.auth_method}")
         self._custom_headers: dict = {}
         if "headers" in kwargs:
             self._custom_headers.update(kwargs["headers"])
@@ -148,21 +148,20 @@ class NeuvueQueue:
         response = data.decode("utf-8")
         response_dict = ast.literal_eval(response)
         access_token = response_dict["access_token"]
+        if self.auth_method == "Config File":
+            self.config["CONFIG"]["access_token"] = access_token
+            
+            try:
+                os.mkdir(os.path.expanduser("~/.neuvuequeue"))
+            except OSError:
+                pass
 
-        self.config["CONFIG"]["access_token"] = access_token
-        
-        try:
-             os.mkdir(os.path.expanduser("~/.neuvuequeue"))
-        except OSError:
-            pass
+            with open(os.path.expanduser("~/.neuvuequeue/neuvuequeue.cfg"), 'w') as configfile:
+                self.config.write(configfile)
 
-        with open(os.path.expanduser("~/.neuvuequeue/neuvuequeue.cfg"), 'w') as configfile:
-            self.config.write(configfile)
-        
-        return access_token
-    
-    def _set_authorization_token(self):
-        self._access_token = self._refresh_authorization_token(self._refresh_token)
+        elif self.auth_method == "Environment Variables":
+            os.environ["NEUVUEQUEUE_ACCESS_TOKEN"] = access_token
+        self._access_token = access_token
 
     @property
     def _headers(self) -> dict:
@@ -231,8 +230,8 @@ class NeuvueQueue:
 
     def _try_request(self, send_req: Callable[[], Any]) -> Any:
         res = send_req()
-        if res.status_code == 401:
-            self._set_authorization_token()
+        if res.status_code == 401 or res.status_code == 500:
+            self._refresh_authorization_token(self._refresh_token)
             res = send_req()
         return res
 
