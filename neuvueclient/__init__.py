@@ -27,6 +27,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
+import http
+import ast
 from typing import Any, Callable, Dict, List, Optional
 
 import time
@@ -36,8 +39,6 @@ import warnings
 import configparser
 import os
 
-import networkx as nx
-from networkx.readwrite import json_graph
 import pandas as pd
 import requests
 
@@ -53,7 +54,6 @@ class NeuvueQueue:
     See neuvueclient/__init__.py for more documentation.
 
     """
-
     def __init__(self, url: str, **kwargs) -> None:
         """
         Create a new neuvuequeue client.
@@ -62,46 +62,113 @@ class NeuvueQueue:
             url (str): The qualified location (including protocol) of the server.
 
         """
-        # TODO: Add google auth layer
-        # config = configparser.ConfigParser()
-
-        # auth_method = ""
-        # if "username" in kwargs and "password" in kwargs:
-        #     auth_method = "Inline Arguments"
-        #     self._username = kwargs["username"]
-        #     self._password = kwargs["password"]
-        # elif ("COLOCARD_USERNAME" in os.environ) and (
-        #     "COLOCARD_PASSWORD" in os.environ
-        # ):
-        #     auth_method = "Environment Variables"
-        #     self._username = os.environ["COLOCARD_USERNAME"]
-        #     self._password = os.environ["COLOCARD_PASSWORD"]
-        # else:
-        #     try:
-        #         config.read(os.path.expanduser("~/.colocarpy/.colocarpy"))
-        #         auth_method = "Config File"
-        #         self._username = config["CONFIG"]["username"]
-        #         self._password = config["CONFIG"]["password"]
-        #     except:
-        #         raise ValueError("No authentication (username/password) provided.")
-
-        # try:
-        #     self._token = self._get_authorization_token()["access_token"]
-        # except KeyError:
-        #     raise ValueError(f"Authorization failed with method [{auth_method}].")
-
+        self.config = configparser.ConfigParser()
         self._url = url.rstrip("/")
+        self.queue_address = self._url.split('//')[1]
+        # JSON State Server Info
+        self._json_state_server = kwargs.get('json_state_server', "https://global.daf-apis.com/nglstate/post")
+        self._json_state_server_token = kwargs.get('json_state_server_token', utils.get_caveclient_token())
+
+        if "token" in kwargs:
+            self.auth_method = "Inline Arguments"
+            self._refresh_token = kwargs["refresh_token"]
+            self._access_token = kwargs["access_token"] 
+        
+        elif ("NEUVUEQUEUE_REFRESH_TOKEN" in os.environ) and ("NEUVUEQUEUE_ACCESS_TOKEN" in os.environ):
+            self.auth_method = "Environment Variables"
+            self._refresh_token = os.environ["NEUVUEQUEUE_REFRESH_TOKEN"]
+            self._access_token = os.environ["NEUVUEQUEUE_ACCESS_TOKEN"] 
+        else:
+            self.auth_method = "Config File"
+            try:
+                self.config.read(os.path.expanduser("~/.neuvuequeue/neuvuequeue.cfg"))
+                self._refresh_token = self.config["CONFIG"]["refresh_token"]
+
+            except:
+                print("No tokens found. Please login. \n")
+                self.login()
+
+            self._refresh_authorization_token(self._refresh_token)
+            self.config.read(os.path.expanduser("~/.neuvuequeue/neuvuequeue.cfg"))
+
+            self._access_token = self.config["CONFIG"]["access_token"]
+
+        print(f"Auth method: {self.auth_method}")
         self._custom_headers: dict = {}
         if "headers" in kwargs:
             self._custom_headers.update(kwargs["headers"])
+    
+    def login(self):
+        """
+        Generates a new authorization token and saves it to a config file.
+        """
+
+        link = "https://dev-oe-jgl7m.us.auth0.com/authorize?response_type=code&client_id=BdwlItpSZeMrd2ZJwaVrmn0VILYhmriK&redirect_uri=https://app.neuvue.io/token&scope=openid%20profile%20email%20offline_access&audience=https://queue.neuvue.io"
         
-        self._json_state_server = kwargs.get('json_state_server', "https://global.daf-apis.com/nglstate/post")
-        self._json_state_server_token = kwargs.get('json_state_server_token', utils.get_caveclient_token())
+        # Verify code 
+        code = input(f"Go to this link: \n {link} \n and log in using your google account, then copy the text the Token page here: ")
+        
+        # Make a request to neuvuequeue to get the authorization token
+        conn = http.client.HTTPSConnection(self.queue_address)
+
+        payload = "{\"code\":\"" + code + "\",\"code_type\":\"authorization\"}"
+
+        headers = { 'content-type': "application/json" }
+        conn.request("POST", "/auth/tokens", payload, headers)
+
+        res = conn.getresponse()
+        data = res.read()
+        response = data.decode("utf-8")
+        response_dict = ast.literal_eval(response)
+        self.config['CONFIG'] = {'refresh_token': response_dict.get("refresh_token", ""),
+                                 'access_token': response_dict.get("access_token", "")}
+        try:
+             os.mkdir(os.path.expanduser("~/.neuvuequeue"))
+        except OSError:
+            pass
+
+        with open(os.path.expanduser("~/.neuvuequeue/neuvuequeue.cfg"), 'w') as configfile:
+            self.config.write(configfile)
+            
+        print(f"Credentials saved to file at ~/.neuvuequeue/neuvuequeue.cfg, which will be read from now on \n \nNote:If your token doesn't work, you may be a first time user. If this is the case, please give your email to the Neuvue team, and they will give your account the necessary permission to make a token.")
+        self._access_token = response_dict["access_token"]
+        self._refresh_token = response_dict["refresh_token"]
+
+    def _refresh_authorization_token(self, refresh: str):
+        """
+        Use the refresh token to generate a new one. 
+        """
+        conn = http.client.HTTPSConnection(self.queue_address)
+        payload = "{\"code\":\"" + refresh + "\",\"code_type\":\"refresh\"}"
+
+        headers = { 'content-type': "application/json" }
+        conn.request("POST", "/auth/tokens", payload, headers)
+
+        res = conn.getresponse()
+        data = res.read()
+        response = data.decode("utf-8")
+        response_dict = ast.literal_eval(response)
+        access_token = response_dict["access_token"]
+        if self.auth_method == "Config File":
+            self.config["CONFIG"]["access_token"] = access_token
+            
+            try:
+                os.mkdir(os.path.expanduser("~/.neuvuequeue"))
+            except OSError:
+                pass
+
+            with open(os.path.expanduser("~/.neuvuequeue/neuvuequeue.cfg"), 'w') as configfile:
+                self.config.write(configfile)
+
+        elif self.auth_method == "Environment Variables":
+            os.environ["NEUVUEQUEUE_ACCESS_TOKEN"] = access_token
+        self._access_token = access_token
 
     @property
     def _headers(self) -> dict:
         headers = {
-            "content-type": "application/json"
+            "content-type": "application/json",
+            "Authorization": f"Bearer {self._access_token}"
         }
         headers.update(self._custom_headers)
         return headers
@@ -124,57 +191,6 @@ class NeuvueQueue:
         Get a list of columns for a datatype.
         """
         return {
-            "graph": [
-                "active",
-                "author",
-                "decisions",
-                "metadata",
-                "namespace",
-                "parent",
-                "structure",
-                "submitted",
-                "volume",
-                "graph",
-            ],
-            "volume": [
-                "__v",
-                "active",
-                "author",
-                "bounds",
-                "metadata",
-                "name",
-                "namespace",
-                "resolution",
-                "uri",
-            ],
-            "question": [
-                "__v",
-                "active",
-                "artifacts",
-                "assignee",
-                "author",
-                "closed",
-                "created",
-                "instructions",
-                "metadata",
-                "namespace",
-                "opened",
-                "priority",
-                "status",
-                "volume",
-            ],
-            "node": [
-                "active",
-                "author",
-                "coordinate",
-                "created",
-                "decisions",
-                "metadata",
-                "namespace",
-                "submitted",
-                "type",
-                "volume",
-            ],
             "point": [
                 "__v",
                 "active",
@@ -215,9 +231,9 @@ class NeuvueQueue:
 
     def _try_request(self, send_req: Callable[[], Any]) -> Any:
         res = send_req()
-        # if res.status_code == 401:
-        #     self._set_authorization_token()
-        #     res = send_req()
+        if res.status_code == 401 or res.status_code == 500:
+            self._refresh_authorization_token(self._refresh_token)
+            res = send_req()
         return res
 
     def depaginate(
@@ -285,731 +301,6 @@ class NeuvueQueue:
                 if "message" in body:
                     raise RuntimeError(body["message"]) from e
                 raise e
-
-    """
-     ██████╗ ██████╗  █████╗ ██████╗ ██╗  ██╗███████╗
-    ██╔════╝ ██╔══██╗██╔══██╗██╔══██╗██║  ██║██╔════╝
-    ██║  ███╗██████╔╝███████║██████╔╝███████║███████╗
-    ██║   ██║██╔══██╗██╔══██║██╔═══╝ ██╔══██║╚════██║
-    ╚██████╔╝██║  ██║██║  ██║██║     ██║  ██║███████║
-     ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝
-    """
-
-    def get_graph(
-        self,
-        graph_id: str,
-        populate_volume: bool = False,
-        regenerate_graph: bool = True,
-    ) -> dict:
-        """
-        Get a single graph by its ID.
-
-        Arguments:
-            graph_id (str): The ID of the graph to retrieve.
-            populate_volume (bool): Whether to populate the graph's volume id with the actual volume object.
-            regenerate_graph (bool): Whether to rehydrate networkx graphs from the structure field.
-
-        Returns:
-            dict
-
-        """
-        res = self._try_request(
-            lambda: requests.get(
-                self.url(f"/graphs/{graph_id}"),
-                headers=self._headers,
-                params={"populate": "volume" if populate_volume else None},
-            )
-        )
-        try:
-            self._raise_for_status(res)
-        except Exception as e:
-            raise RuntimeError(f"Unable to get graph {graph_id}") from e
-
-        result = res.json()
-        if regenerate_graph:
-            result["graph"] = json_graph.node_link_graph(result["structure"])
-        return result
-
-    def delete_graph(self, graph_id: str) -> str:
-        """
-        Delete a single graph.
-
-        Arguments:
-            graph_id (str): The ID of the graph to delete.
-
-        Returns:
-            str
-
-        """
-        res = self._try_request(
-            lambda: requests.delete(
-                self.url(f"/graphs/{graph_id}"), headers=self._headers
-            )
-        )
-        try:
-            self._raise_for_status(res)
-        except Exception as e:
-            raise RuntimeError(f"Unable to delete graph {graph_id}") from e
-        return graph_id
-
-    def get_graphs(
-        self,
-        sieve: dict = None,
-        populate_volume: bool = False,
-        regenerate_graph: bool = True,
-        limit: int = None,
-        active_default: bool = True,
-    ) -> list:
-        """
-        Get a list of graphs.
-
-        Automatically converts the `structure` component to a graph object
-        in networkx format, which is stored in the `graph` key of the object.
-
-        Arguments:
-            sieve (dict): See sieve documentation.
-            populate_volume (bool): Whether to populate the graphs' volume id with their corresponding volume object.
-            regenerate_graph (bool): Whether to rehydrate networkx graphs from the structure field.
-            limit (int: None): The maximum number of items to return.
-            active_default (bool: True): If `active` is not a key included in sieve, set it to this
-
-        Returns:
-            pd.DataFrame
-
-        """
-        if sieve is None:
-            sieve = {"active": active_default}
-        if "active" not in sieve:
-            sieve["active"] = active_default
-        populate = ["volume"] if populate_volume else None
-
-        try:
-            depaginated_graphs = self.depaginate(
-                "graphs", sieve, populate=populate, limit=limit
-            )
-        except Exception as e:
-            raise RuntimeError("Failed to get graphs") from e
-        else:
-            res = pd.DataFrame(depaginated_graphs)
-            # If an empty response, then return an empty dataframe:
-            if len(res) == 0:
-                return pd.DataFrame([], columns=self.dtype_columns("graph"))
-
-            res.set_index("_id", inplace=True)
-            res.submitted = pd.to_datetime(res.submitted, unit="ms")
-            if regenerate_graph:
-                res["graph"] = res.structure.map(json_graph.node_link_graph)
-
-            return res
-
-    def post_graph(
-        self,
-        volume: str,
-        graph: nx.Graph,
-        author: str,
-        namespace: str,
-        validate: bool = True,
-    ):
-        """
-        Post a new graph to the database.
-
-        Arguments:
-            volume: str,
-            graph: nx.Graph,
-            author: str,
-            namespace: str,
-            validate: bool = True
-
-        Returns:
-            dict: Graph, as inserted
-
-        """
-
-        if validate:
-            if not isinstance(graph, nx.Graph):
-                raise ValueError(f"Graph must be a networkx.Graph.")
-
-            if not all(["coordinate" in n for _, n in graph.nodes(True)]):
-                raise ValueError("All nodes must have a `coordinate`.")
-
-        req_obj = {
-            "volume": volume,
-            "structure": json_graph.node_link_data(graph),
-            "author": author,
-            "namespace": namespace,
-            "__v": 0,
-        }
-
-        res = self._try_request(
-            lambda: requests.post(
-                self.url("/graphs/"), data=json.dumps(req_obj), headers=self._headers
-            )
-        )
-        try:
-            self._raise_for_status(res)
-        except Exception as e:
-            raise RuntimeError("Unable to post graph") from e
-
-        return res.json()
-
-    """
-    ██╗   ██╗ ██████╗ ██╗     ██╗   ██╗███╗   ███╗███████╗███████╗
-    ██║   ██║██╔═══██╗██║     ██║   ██║████╗ ████║██╔════╝██╔════╝
-    ██║   ██║██║   ██║██║     ██║   ██║██╔████╔██║█████╗  ███████╗
-    ╚██╗ ██╔╝██║   ██║██║     ██║   ██║██║╚██╔╝██║██╔══╝  ╚════██║
-     ╚████╔╝ ╚██████╔╝███████╗╚██████╔╝██║ ╚═╝ ██║███████╗███████║
-      ╚═══╝   ╚═════╝ ╚══════╝ ╚═════╝ ╚═╝     ╚═╝╚══════╝╚══════╝
-    """
-
-    def get_volume(self, volume_id: str) -> dict:
-        """
-        Get a single volume by its ID.
-
-        Arguments:
-            volume_id (str): The ID of the volume to retrieve
-
-        Returns:
-            dict
-
-        """
-        res = self._try_request(
-            lambda: requests.get(
-                self.url("/volumes/{}".format(volume_id)), headers=self._headers
-            )
-        )
-        try:
-            self._raise_for_status(res)
-        except Exception as e:
-            raise RuntimeError(f"Unable to get volume {volume_id}") from e
-        return res.json()
-
-    def delete_volume(self, volume_id: str) -> str:
-        """
-        Delete a single volume.
-
-        Arguments:
-            volume_id (str): The ID of the volume to delete
-
-        Returns:
-            dict
-
-        """
-        res = self._try_request(
-            lambda: requests.delete(
-                self.url(f"/volumes/{volume_id}"), headers=self._headers
-            )
-        )
-        try:
-            self._raise_for_status(res)
-        except Exception as e:
-            raise RuntimeError(f"Unable to delete volume {volume_id}") from e
-        return volume_id
-
-    def get_volumes(
-        self, sieve: dict = None, limit: int = None, active_default: bool = True
-    ):
-        """
-        Get a list of volumes.
-
-        Arguments:
-            sieve (dict): See sieve documentation.
-            limit (int: None): The maximum number of items to return.
-            active_default (bool: True): If `active` is not a key included in sieve, set it to this
-
-        Returns:
-            pd.DataFrame
-
-        """
-        if sieve is None:
-            sieve = {"active": active_default}
-        if "active" not in sieve:
-            sieve["active"] = active_default
-        try:
-            depaginated_volumes = self.depaginate("volumes", sieve, limit=limit)
-        except Exception as e:
-            raise RuntimeError("Failed to get volumes") from e
-        else:
-            res = pd.DataFrame(depaginated_volumes)
-
-            # If an empty response, then return an empty dataframe:
-            if len(res) == 0:
-                return pd.DataFrame([], columns=self.dtype_columns("volume"))
-
-            res.set_index("_id", inplace=True)
-            res.uri = res.uri.map(utils.unpack_uri)
-            return res
-
-    def post_volume(
-        self,
-        name: str,
-        uri: str,
-        bounds: List[List[int]],
-        resolution: int,
-        author: str,
-        namespace: str,
-        metadata: dict = None,
-        validate: bool = True,
-    ):
-        """
-        Post a new volume to the database.
-
-        Arguments:
-            name (str)
-            uri (str)
-            bounds (List[List[int]])
-            resolution (int)
-            author (str)
-            namespace (str)
-            metadata (dict = None)
-            validate (bool = True)
-
-        Returns:
-            dict: Volume, as inserted
-
-        """
-        if metadata is None:
-            metadata = {}
-
-        if validate:
-            if not isinstance(resolution, int):
-                raise ValueError(f"Resolution [{resolution}] must be an int.")
-
-            try:
-                utils.unpack_uri(uri)
-            except:
-                raise ValueError(f"URI [{uri}] is malformed.")
-
-            if (
-                not isinstance(bounds, list)
-                or len(bounds) != 2
-                or not isinstance(bounds[0], list)
-                or not isinstance(bounds[1], list)
-                or not (len(bounds[0]) == len(bounds[1]) == 3)
-            ):
-                raise ValueError("Bounds must be of type Number[2, 3].")
-
-        volume = {
-            "active": True,
-            "bounds": bounds,
-            "metadata": metadata,
-            "author": author,
-            "name": name,
-            "namespace": namespace,
-            "resolution": resolution,
-            "uri": uri,
-            "__v": 0,
-        }
-
-        res = self._try_request(
-            lambda: requests.post(
-                self.url("/volumes"), data=json.dumps(volume), headers=self._headers
-            )
-        )
-        try:
-            self._raise_for_status(res)
-        except Exception as e:
-            raise RuntimeError("Unable to post volume") from e
-        return res.json()
-
-    """
-     ██████╗ ██╗   ██╗███████╗███████╗████████╗██╗ ██████╗ ███╗   ██╗███████╗
-    ██╔═══██╗██║   ██║██╔════╝██╔════╝╚══██╔══╝██║██╔═══██╗████╗  ██║██╔════╝
-    ██║   ██║██║   ██║█████╗  ███████╗   ██║   ██║██║   ██║██╔██╗ ██║███████╗
-    ██║▄▄ ██║██║   ██║██╔══╝  ╚════██║   ██║   ██║██║   ██║██║╚██╗██║╚════██║
-    ╚██████╔╝╚██████╔╝███████╗███████║   ██║   ██║╚██████╔╝██║ ╚████║███████║
-     ╚══▀▀═╝  ╚═════╝ ╚══════╝╚══════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
-    """
-
-    def get_question(self, question_id: str) -> dict:
-        """
-        Get a single question by its ID.
-
-        Arguments:
-            question_id (str): The ID of the question to retrieve
-
-        Returns:
-            dict
-
-        """
-        res = self._try_request(
-            lambda: requests.get(
-                self.url(f"/questions/{question_id}"), headers=self._headers
-            )
-        )
-        try:
-            self._raise_for_status(res)
-        except Exception as e:
-            raise RuntimeError(f"Unable to get question {question_id}") from e
-
-        return res.json()
-
-    def get_next_question(self, assignee: str, namespace: str) -> dict:
-        """
-        Get the next question for a user.
-
-        First checks for an open question; then sorts by highest to lowest
-        priority of unopened questions.
-
-        Arguments:
-            assignee (str): The username of the assignee
-            namespace (str): The app for which the question was assigned
-
-        Returns:
-            dict
-
-        """
-        query = json.dumps(
-            {
-                "assignee": assignee,
-                "namespace": namespace,
-                "active": True,
-                "status": "opened",
-            }
-        )
-        res = self._try_request(
-            lambda: requests.get(
-                self.url(f"/questions"), headers=self._headers, params={"q": query}
-            )
-        )
-        try:
-            self._raise_for_status(res)
-        except Exception as e:
-            raise RuntimeError("Unable to get opened questions") from e
-
-        r = res.json()
-
-        if len(r):
-            return r[0]
-
-        query = json.dumps(
-            {
-                "assignee": assignee,
-                "namespace": namespace,
-                "active": True,
-                "status": "pending",
-            }
-        )
-        res = self._try_request(
-            lambda: requests.get(
-                self.url("/questions"),
-                headers=self._headers,
-                params={"q": query, "sort": "-priority"},
-            )
-        )
-        try:
-            self._raise_for_status(res)
-        except Exception as e:
-            raise RuntimeError("Unable to get opened questions") from e
-
-        r = res.json()
-
-        return r[0] if r else None
-
-    def delete_question(self, question_id: str) -> str:
-        """
-        Delete a single question.
-
-        Arguments:
-            question_id (str): The ID of the question to delete
-
-        Returns:
-            dict
-
-        """
-        res = self._try_request(
-            lambda: requests.delete(
-                self.url(f"/questions/{question_id}"), headers=self._headers
-            )
-        )
-        try:
-            self._raise_for_status(res)
-        except Exception as e:
-            raise RuntimeError(f"Unable to delete question {question_id}") from e
-        return question_id
-
-    def get_questions(
-        self, sieve: dict = None, limit: int = None, active_default: bool = True
-    ):
-        """
-        Get a list of questions.
-
-        Arguments:
-            sieve (dict): See sieve documentation.
-            limit (int: None): The maximum number of items to return.
-            active_default (bool: True): If `active` is not a key included in sieve, set it to this
-
-        Returns:
-            pd.DataFrame
-
-        """
-        if sieve is None:
-            sieve = {"active": active_default}
-        if "active" not in sieve:
-            sieve["active"] = active_default
-        try:
-            depaginated_questions = self.depaginate("questions", sieve, limit=limit)
-        except Exception as e:
-            raise RuntimeError("Unable to get questions") from e
-        else:
-            res = pd.DataFrame(depaginated_questions)
-
-            # If an empty response, then return an empty dataframe:
-            if len(res) == 0:
-                return pd.DataFrame([], columns=self.dtype_columns("question"))
-
-            res.set_index("_id", inplace=True)
-            res.created = pd.to_datetime(res.created, unit="ms")
-            res.opened = pd.to_datetime(res.opened, unit="ms")
-            res.closed = pd.to_datetime(res.closed, unit="ms")
-            return res
-
-    def post_question(
-        self,
-        volume: str,
-        author: str,
-        assignee: str,
-        priority: int,
-        namespace: str,
-        instructions: dict,
-        metadata: dict = None,
-        validate: bool = True,
-    ):
-        """
-        Post a new question to the database.
-
-        Arguments:
-            volume (str)
-            author (str)
-            assignee (str)
-            priority (int)
-            namespace (str)
-            instructions (dict)
-            metadata (dict = None)
-            validate (bool = True)
-
-        Returns:
-            dict
-
-        """
-        if metadata is None:
-            metadata = {}
-
-        if not isinstance(priority, int):
-            raise ValueError(f"Priority [{priority}] must be an integer.")
-
-        if validate:
-            try:
-                self.get_volume(volume)
-            except Exception as e:
-                raise RuntimeError(f"Failed to validate volume [{volume}]") from e
-
-            # App-specific validation
-            if namespace == "breadcrumbs":
-                if "graph" not in instructions:
-                    raise ValueError(
-                        "instructions.graph must be provided to breadcrumbs questions."
-                    )
-                else:
-                    try:
-                        self.get_graph(instructions["graph"])
-                    except Exception as e:
-                        raise RuntimeError(
-                            f"Failed to validate graph {instructions['graph']} existance"
-                        ) from e
-
-        question = {
-            "active": True,
-            "closed": None,
-            "metadata": metadata,
-            "opened": None,
-            "status": "pending",
-            "volume": volume,
-            "priority": priority,
-            "author": author,
-            "assignee": assignee,
-            "namespace": namespace,
-            "instructions": instructions,
-            "created": utils.date_to_ms(),
-            "__v": 0,
-        }
-
-        res = self._try_request(
-            lambda: requests.post(
-                self.url("/questions"), data=json.dumps(question), headers=self._headers
-            )
-        )
-        try:
-            self._raise_for_status(res)
-        except Exception as e:
-            raise RuntimeError("Failed to post question") from e
-        return res.json()
-
-    def post_question_broadcast(
-        self,
-        volume: str,
-        author: str,
-        assignees: List[str],
-        priority: int,
-        namespace: str,
-        instructions: dict,
-        metadata: dict = None,
-        validate: bool = True,
-    ):
-        """
-        Post a new question to the database for a given set of assignees.
-
-        Arguments:
-            volume (str)
-            author (str)
-            assignees (List[str])
-            priority (int)
-            namespace (str)
-            instructions (dict)
-            metadata (dict = None)
-            validate (bool = True)
-
-        Returns:
-            List[dict]
-
-        """
-        if metadata is None:
-            metadata = {}
-
-        if not isinstance(priority, int):
-            raise ValueError(f"Priority [{priority}] must be an integer.")
-
-        if validate:
-            try:
-                self.get_volume(volume)
-            except Exception as e:
-                raise RuntimeError(f"Failed to validate volume [{volume}]") from e
-
-            # App-specific validation
-            if namespace == "breadcrumbs":
-                if "graph" not in instructions:
-                    raise ValueError(
-                        "instructions.graph must be provided to breadcrumbs questions."
-                    )
-                else:
-                    try:
-                        self.get_graph(instructions["graph"])
-                    except Exception as e:
-                        raise RuntimeError(
-                            f"Failed to validate graph {instructions['graph']} existance"
-                        ) from e
-
-        questions = []
-        created = utils.date_to_ms()
-        for a in assignees:
-            questions.append(
-                {
-                    "active": True,
-                    "closed": None,
-                    "metadata": metadata,
-                    "opened": None,
-                    "status": "pending",
-                    "volume": volume,
-                    "priority": priority,
-                    "author": author,
-                    "assignee": a,
-                    "namespace": namespace,
-                    "instructions": instructions,
-                    "created": created,
-                    "__v": 0,
-                }
-            )
-
-        res = self._try_request(
-            lambda: requests.post(
-                self.url("/questions"),
-                data=json.dumps(questions),
-                headers=self._headers,
-            )
-        )
-        try:
-            self._raise_for_status(res)
-        except Exception as e:
-            raise RuntimeError("Failed to post question") from e
-        return res.json()
-
-
-    """
-    ███╗   ██╗ ██████╗ ██████╗ ███████╗███████╗
-    ████╗  ██║██╔═══██╗██╔══██╗██╔════╝██╔════╝
-    ██╔██╗ ██║██║   ██║██║  ██║█████╗  ███████╗
-    ██║╚██╗██║██║   ██║██║  ██║██╔══╝  ╚════██║
-    ██║ ╚████║╚██████╔╝██████╔╝███████╗███████║
-    ╚═╝  ╚═══╝ ╚═════╝ ╚═════╝ ╚══════╝╚══════╝
-    """
-
-    def get_node(self, node_id: str, populate_volume: bool = False) -> dict:
-        """
-        Get a single node by its ID.
-
-        Arguments:
-            node_id (str): The ID of the node to retrieve
-            populate_volume (bool): Whether to populate the graph's volume id with the actual volume object.
-        Returns:
-            dict
-
-        """
-        res = self._try_request(
-            lambda: requests.get(
-                self.url(f"/nodes/{node_id}"),
-                headers=self._headers,
-                params={"populate": "volume" if populate_volume else None},
-            )
-        )
-        try:
-            self._raise_for_status(res)
-        except Exception as e:
-            raise RuntimeError(f"Failed to get node {node_id}") from e
-        return res.json()
-
-    def get_nodes(
-        self,
-        sieve: dict = None,
-        populate_volume: bool = False,
-        limit: int = None,
-        active_default: bool = True,
-    ):
-        """
-        Get a list of nodes.
-
-        Arguments:
-            sieve (dict): See sieve documentation.
-            populate_volume (bool): Whether to populate the nodes' volume id with the actual volume object.
-            limit (int: None): The maximum number of items to return.
-            active_default (bool: True): If `active` is not a key included in sieve, set it to this
-
-        Returns:
-            pd.DataFrame
-
-        """
-        if sieve is None:
-            sieve = {"active": active_default}
-        if "active" not in sieve:
-            sieve["active"] = active_default
-        populate = ["volume"] if populate_volume else None
-
-        try:
-            depaginated_nodes = self.depaginate(
-                "nodes", sieve, populate=populate, limit=limit
-            )
-        except Exception as e:
-            raise RuntimeError("Failed to get nodes") from e
-        else:
-            res = pd.DataFrame(depaginated_nodes)
-
-            # If an empty response, then return an empty dataframe:
-            if len(res) == 0:
-                return pd.DataFrame([], columns=self.dtype_columns("node"))
-
-            res.set_index("_id", inplace=True)
-            res.created = pd.to_datetime(res.created, unit="ms")
-            res.submitted = pd.to_datetime(res.submitted, unit="ms")
-
-            return res
 
     """
     ██████╗  ██████╗ ██╗███╗   ██╗████████╗███████╗
