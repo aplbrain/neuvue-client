@@ -32,6 +32,7 @@ import http
 import ast
 from typing import Any, Callable, Dict, List, Optional
 
+import time
 import datetime
 import json
 import warnings
@@ -549,7 +550,7 @@ class NeuvueQueue:
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
             populate_points (bool): Whether to populate the tasks' point ids with their corresponding point object.
             sort (str): attribute to sort by, default is priority 
-            return_states (bool): whether to populate tasks' ng states states 
+            return_states (bool): whether to populate tasks' ng states
             return_metadata (bool): whether to populate tasks' metadata
             convert_states_to_json (bool): whether to convert ng_states to json strings
         Returns:
@@ -560,6 +561,14 @@ class NeuvueQueue:
             sieve = {"active": active_default}
         if "active" not in sieve:
             sieve["active"] = active_default
+        time_queries = [key for key in sieve.keys() if key in ['created', 'opened', 'closed']]
+        if time_queries:
+            for key in time_queries:
+                if len(sieve[key]) > 1:
+                    assert sieve[key]['$gt'] < sieve[key]['$lt'], "$gt argument must be less than $lt if both are used."
+                for query in sieve[key].keys():
+                    assert type(sieve[key][query]) == datetime.datetime, "Please enter a datetime.datetime object."
+                    sieve[key][query] = round(sieve[key][query].timestamp()*1000)
         
         populate = ["points"] if populate_points else None
         select = self.dtype_columns("task")
