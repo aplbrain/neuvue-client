@@ -640,11 +640,30 @@ class NeuvueQueue:
         if metadata is None:
             metadata = {}
 
-        if not isinstance(priority, int):
-            raise ValueError(f"Priority [{priority}] must be an integer.")
+        # type check parameters
+        if not isinstance(instructions, dict):
+            raise ValueError(f"Instructions [{instructions}] must be a dictionary.")
+
+        if (not isinstance(priority, int)) or (priority < 1):
+            raise ValueError(f"Priority [{priority}] must be an integer greater than 1.")
 
         if not isinstance(duration, int):
             raise ValueError(f"Duration [{duration}] must be an integer.")
+
+        if (not isinstance(points, list)) or not isinstance(points[0], str):
+            raise ValueError(f"Points [{points}] must be a list of strings.")
+                
+        if not isinstance(metadata, dict):
+            raise ValueError(f"Metadata [{metadata}] must be a dict.")
+
+        if not isinstance(seg_id, str):
+            raise ValueError(f"Seg_id [{seg_id}] must be a string.")
+        
+        if (not isinstance(assignee, str)) or (not isinstance(assignee[0], str)):
+            raise ValueError(f"Assignee [{assignee}] must be a string.")
+        
+        if not isinstance(namespace, str):
+            raise ValueError(f"Namespace [{namespace}] must be a string.")
         
         if (post_state and 
             ng_state is not None and 
@@ -724,11 +743,42 @@ class NeuvueQueue:
         if metadata is None:
             metadata = {}
 
-        if not isinstance(priority, int):
-            raise ValueError(f"Priority [{priority}] must be an integer.")
+        # typecheck parameters 
+        # if not isinstance(volume, str):
+        #     raise ValueError(f"Volume [{volume}] must be a string.")
+
+        if not isinstance(author, str):
+            raise ValueError(f"Author [{author}] must be a string.")
+        
+        if (not isinstance(assignees, list)) or (not isinstance(assignees[0], str)):
+            raise ValueError(f"Assignees [{assignees}] must be a list of strings.")
+
+        if (not isinstance(priority, int)) or (priority < 1):
+            raise ValueError(f"Priority [{priority}] must be an integer greater than 1.")
+
+        if not isinstance(namespace, str):
+            raise ValueError(f"Namespace [{namespace}] must be a string.")
+
+        if not isinstance(instructions, dict):
+            raise ValueError(f"Instructions [{instructions}] must be a dict.")
+
+        if (not isinstance(points, list)) or not isinstance(points[0], str):
+            raise ValueError(f"Points [{points}] must be a list of strings.")
 
         if not isinstance(duration, int):
             raise ValueError(f"Duration [{duration}] must be an integer.")
+
+        if not isinstance(metadata, dict):
+            raise ValueError(f"Metadata [{metadata}] must be a dict.")
+
+        if not isinstance(seg_id, str):
+            raise ValueError(f"Seg_id [{seg_id}] must be a string.")
+
+        if not isinstance(ng_state, str):
+            raise ValueError(f"Ng_state [{ng_state}] must be a string.")
+
+        if not isinstance(post_state, bool):
+            raise ValueError(f"Post_state [{post_state}] must be a bool.")
 
         if (post_state and 
             ng_state is not None and
