@@ -812,6 +812,10 @@ class NeuvueQueue:
                 old_metadata = self.get_task(task_id)['metadata']
                 value.update(old_metadata)
 
+            if key == 'duration':
+                old_duration = self.get_task(task_id)['duration']
+                value += old_duration
+
             stri = f"/tasks/{task_id}/{key}"
             res = self._try_request( 
                 lambda: requests.patch(
