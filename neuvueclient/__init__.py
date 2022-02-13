@@ -815,6 +815,10 @@ class NeuvueQueue:
             if key == 'duration':
                 old_duration = self.get_task(task_id)['duration']
                 value += old_duration
+                
+            if key == 'opened':
+                old_opened_time = self.get_task(task_id)['opened']
+                value = old_opened_time
 
             stri = f"/tasks/{task_id}/{key}"
             res = self._try_request( 
