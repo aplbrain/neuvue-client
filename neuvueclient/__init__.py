@@ -860,7 +860,8 @@ class NeuvueQueue:
         for key, value in kwargs.items():
             if key == 'metadata':
                 old_metadata = self.get_task(task_id)['metadata']
-                value.update(old_metadata)
+                old_metadata.update(value)
+                value = old_metadata
 
             stri = f"/tasks/{task_id}/{key}"
             res = self._try_request( 
