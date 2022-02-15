@@ -171,12 +171,12 @@ class NeuvueQueue:
     def _headers(self) -> dict:
         if self._local:
             headers = {
-                "content-type": "application/json",
-                "Authorization": f"Bearer {self._access_token}"
+                "content-type": "application/json"
             }
         else:
             headers = {
-                "content-type": "application/json"
+                "content-type": "application/json",
+                "Authorization": f"Bearer {self._access_token}"
             }
         headers.update(self._custom_headers)
         return headers
