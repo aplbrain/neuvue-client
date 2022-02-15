@@ -68,7 +68,7 @@ class NeuvueQueue:
         # JSON State Server Info
         self._json_state_server = kwargs.get('json_state_server', "https://global.daf-apis.com/nglstate/post")
         self._json_state_server_token = kwargs.get('json_state_server_token', utils.get_caveclient_token())
-
+        self._local = False
         if "token" in kwargs:
             self.auth_method = "Inline Arguments"
             self._refresh_token = kwargs["refresh_token"]
@@ -547,7 +547,8 @@ class NeuvueQueue:
         populate_points: bool = False,
         return_states: bool = True,
         return_metadata: bool = True,
-        convert_states_to_json: bool = True
+        convert_states_to_json: bool = True,
+        **kwargs
     ):
         """
         Get a list of tasks.
@@ -579,7 +580,7 @@ class NeuvueQueue:
                     sieve[key][query] = round(sieve[key][query].timestamp()*1000)
         
         populate = ["points"] if populate_points else None
-        select = self.dtype_columns("task")
+        select = kwargs.get('select', self.dtype_columns("task"))
         if not return_states:
             select.remove('ng_state')
         if not return_metadata:
@@ -596,12 +597,15 @@ class NeuvueQueue:
             if len(res) == 0:
                 return pd.DataFrame([], columns=self.dtype_columns("task"))
             res.set_index("_id", inplace=True)
-            res.created = pd.to_datetime(res.created, unit="ms")
-            res.opened = pd.to_datetime(res.opened, unit="ms")
-            res.closed = pd.to_datetime(res.closed, unit="ms")
+            if 'created' in res.columns:
+                res.created = pd.to_datetime(res.created, unit="ms")
+            if 'opened' in res.columns:
+                res.opened = pd.to_datetime(res.opened, unit="ms")
+            if 'closed' in res.columns:
+                res.closed = pd.to_datetime(res.closed, unit="ms")
 
             # Convert states to JSON if they are in URL format 
-            if convert_states_to_json and return_states:
+            if convert_states_to_json and return_states and 'ng_state' in res.columns:
                 
                 def _convert_state(x):
                     try:
