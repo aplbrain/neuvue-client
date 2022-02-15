@@ -78,6 +78,9 @@ class NeuvueQueue:
             self.auth_method = "Environment Variables"
             self._refresh_token = os.environ["NEUVUEQUEUE_REFRESH_TOKEN"]
             self._access_token = os.environ["NEUVUEQUEUE_ACCESS_TOKEN"] 
+        elif kwargs.get('local', False):
+            self._local = True
+            self.auth_method = "Local (NO AUTH)"
         else:
             self.auth_method = "Config File"
             try:
@@ -166,10 +169,15 @@ class NeuvueQueue:
 
     @property
     def _headers(self) -> dict:
-        headers = {
-            "content-type": "application/json",
-            "Authorization": f"Bearer {self._access_token}"
-        }
+        if self._local:
+            headers = {
+                "content-type": "application/json",
+                "Authorization": f"Bearer {self._access_token}"
+            }
+        else:
+            headers = {
+                "content-type": "application/json"
+            }
         headers.update(self._custom_headers)
         return headers
 
@@ -231,7 +239,7 @@ class NeuvueQueue:
 
     def _try_request(self, send_req: Callable[[], Any]) -> Any:
         res = send_req()
-        if res.status_code == 401 or res.status_code == 500:
+        if (res.status_code == 401 or res.status_code == 500) and not self._local:
             self._refresh_authorization_token(self._refresh_token)
             res = send_req()
         return res
