@@ -662,13 +662,13 @@ class NeuvueQueue:
         if not isinstance(duration, int):
             raise ValueError(f"Duration [{duration}] must be an integer.")
 
-        if (not isinstance(points, list)) or not isinstance(points[0], str):
+        if points is not None and not isinstance(points, list):
             raise ValueError(f"Points [{points}] must be a list of strings.")
                 
-        if not isinstance(metadata, dict):
+        if metadata is not None and not isinstance(metadata, dict):
             raise ValueError(f"Metadata [{metadata}] must be a dict.")
 
-        if not isinstance(seg_id, str):
+        if seg_id is not None and not isinstance(seg_id, str):
             raise ValueError(f"Seg_id [{seg_id}] must be a string.")
         
         if (not isinstance(assignee, str)) or (not isinstance(assignee[0], str)):
@@ -755,10 +755,6 @@ class NeuvueQueue:
         if metadata is None:
             metadata = {}
 
-        # typecheck parameters 
-        # if not isinstance(volume, str):
-        #     raise ValueError(f"Volume [{volume}] must be a string.")
-
         if not isinstance(author, str):
             raise ValueError(f"Author [{author}] must be a string.")
         
@@ -774,20 +770,14 @@ class NeuvueQueue:
         if not isinstance(instructions, dict):
             raise ValueError(f"Instructions [{instructions}] must be a dict.")
 
-        if (not isinstance(points, list)) or not isinstance(points[0], str):
-            raise ValueError(f"Points [{points}] must be a list of strings.")
-
         if not isinstance(duration, int):
             raise ValueError(f"Duration [{duration}] must be an integer.")
 
-        if not isinstance(metadata, dict):
+        if metadata is not None and not isinstance(metadata, dict):
             raise ValueError(f"Metadata [{metadata}] must be a dict.")
 
-        if not isinstance(seg_id, str):
+        if seg_id is not None and not isinstance(seg_id, str):
             raise ValueError(f"Seg_id [{seg_id}] must be a string.")
-
-        if not isinstance(ng_state, str):
-            raise ValueError(f"Ng_state [{ng_state}] must be a string.")
 
         if not isinstance(post_state, bool):
             raise ValueError(f"Post_state [{post_state}] must be a bool.")
