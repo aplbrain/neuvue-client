@@ -831,7 +831,7 @@ class NeuvueQueue:
             raise RuntimeError("Failed to post task") from e
         return res.json()
 
-    def patch_task(self, task_id: str, overwrite_opened: bool = False, **kwargs):
+    def patch_task(self, task_id: str, overwrite_opened: bool = True, **kwargs):
         """
         Patch a single task. Iterates through each argument passed through kwargs and patches each.
         
