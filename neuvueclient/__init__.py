@@ -687,6 +687,8 @@ class NeuvueQueue:
                 ng_state, 
                 self._json_state_server, 
                 self._json_state_server_token)
+
+            metadata['base_state'] = ng_state_url
         else:
             ng_state_url = None
         
