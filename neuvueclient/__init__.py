@@ -831,7 +831,7 @@ class NeuvueQueue:
             raise RuntimeError("Failed to post task") from e
         return res.json()
 
-    def patch_task(self, task_id: str, **kwargs):
+    def patch_task(self, task_id: str, overwrite_opened: bool = False, **kwargs):
         """
         Patch a single task. Iterates through each argument passed through kwargs and patches each.
         
@@ -845,6 +845,7 @@ class NeuvueQueue:
         
         Arguments:
             task_id (str): The ID of the question to delete
+            overwrite_opened (bool): whether to update the opened time when patching status. 
             kwargs (dict or str or int): The fields to modify. Only supports 
                 - instruction
                 - priority 
@@ -860,16 +861,25 @@ class NeuvueQueue:
             return 
 
         for key, value in kwargs.items():
+
+            # Append metadata to existing entries
             if key == 'metadata':
                 old_metadata = self.get_task(task_id)['metadata']
                 old_metadata.update(value)
                 value = old_metadata
 
             stri = f"/tasks/{task_id}/{key}"
+            
+            # Include flag for status updates, if needed. 
+            if overwrite_opened and key == 'status':
+                data = {key:value, "overwrite_opened": True}
+            else:
+                data = {key:value}
+
             res = self._try_request( 
                 lambda: requests.patch(
                     self.url(stri), 
-                    data =json.dumps({key:value}),
+                    data=json.dumps(data),
                     headers=self._headers)
             )
             try:
