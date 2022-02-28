@@ -860,10 +860,13 @@ class NeuvueQueue:
             JSON
         """
         if not kwargs:
+            print("WARNING: No valid kwargs provided in patch_task().")
             return 
 
+        valid_kwargs = self.dtype_columns("task")
         for key, value in kwargs.items():
-
+            if key not in valid_kwargs:
+                print("WARNING: Key {key} does not exist in task attributes.")
             # Append metadata to existing entries
             if key == 'metadata':
                 old_metadata = self.get_task(task_id)['metadata']
