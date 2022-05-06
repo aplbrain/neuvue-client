@@ -995,3 +995,53 @@ class NeuvueQueue:
         except Exception as e:
             raise RuntimeError("Failed to post differ stack") from e
         return res.json()
+"""
+ █████╗  ██████╗ ███████╗███╗   ██╗████████╗███████╗
+██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝██╔════╝
+███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   ███████╗
+██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   ╚════██║
+██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   ███████║
+╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝
+"""
+def post_agent(
+        self,
+        root_id: str,
+        endpoint:tuple,
+        hash: str,
+        bounding_box_agents: list,
+        bounding_box_membranes: list,
+        merges: dict,
+    ):
+        """
+        Post a new task to the database.
+
+        Arguments:
+            root_id List(str)
+            endpoint tuple(int,int,int)
+            hash (str)
+            merges dict{str->int}
+
+        Returns:
+            dict
+
+        """
+
+        agent_task = {
+            "active": True,
+            "root_id":root_id,
+            "endpoint": endpoint,
+            "hash": hash,
+            "bounding_box_agents":bounding_box_agents,
+            "bounding_box_membranes":bounding_box_membranes,
+            "merges": merges,
+        }
+        res = self._try_request(
+            lambda: requests.post(
+                self.url("/agents"), data=json.dumps(agent_task), headers=self._headers
+            )
+        )
+        try:
+            self._raise_for_status(res)
+        except Exception as e:
+            raise RuntimeError("Failed to post task") from e
+        return res.json()
