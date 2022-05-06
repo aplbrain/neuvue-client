@@ -1,10 +1,9 @@
 matplotlib
-networkx
 pandas
 requests
 typing
 typing-extensions
-
+backoff
 black
 mypy
 pylint

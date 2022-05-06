@@ -128,3 +128,87 @@ Get a single node by its ID.
 ### Returns
     dict
 
+## *Function* `get_task(self, task_id: str, populate_points: bool = False, convert_states_to_json: bool = False) -> dict`
+
+
+Get a single task by its ID.
+
+### Arguments
+> - **task_id** (`str`: `None`): The ID of the task to retrieve
+> - **populate_points** (`bool` = `False`): Populate points for the task object.
+> - **convert_states_to_json** (`bool` = `False`): Whether to convert a state url to JSON string
+### Returns
+    dict
+
+## *Function* `get_tasks(self, task_id: str, populate_points: bool = False, convert_states_to_json: bool = False) -> pd.DataFrame`
+
+Get a list of tasks.
+
+### Arguments
+> - **sieve** (`dict`): See sieve documentation.
+> - **limit** (`int`: `None`): The maximum number of items to return
+> - **active_default** (`bool`: `True`): If `active` is not a key included in sieve, set it to this
+> - **populate_points** (`bool`): Whether to populate the tasks' point ids with their corresponding point object.
+> - **sort** (`str`): attribute to sort by, default is priority 
+> - **return_states** (`bool`): whether to populate tasks' ng states
+> - **return_metadata** (`bool`): whether to populate tasks' metadata
+> - **convert_states_to_json** (`bool`): whether to convert ng_states to json strings
+### Returns
+    pd.DataFrame
+### Sieving Examples
+~~~python
+from neuvueclient import NeuvueQueue
+
+client = NeuvueQueue("http://localhost:9005")
+~~~
+
+#### Sieve by assignee
+
+~~~python
+client.get_tasks(
+    sieve={"assignee":"admin"},
+    return_states=False, 
+    return_metadata=False
+)
+~~~
+
+#### Sieve by creation time
+
+Returns tasks created between January 1 2022 12:00 and February 1, 2022 12:00 
+
+~~~python
+client.get_tasks(
+    sieve={
+        "created": {
+            "$lt": datetime.datetime(2022, 2, 1, 12, 0), # before the specified datetime
+            "$gt": datetime.datetime(2022, 1, 1, 12, 0) # after the specified datetime
+        }
+    }, 
+    return_states=False, 
+    return_metadata=False
+)
+~~~
+
+#### Sieve by multiple parameters
+
+Returns tasks:
+
+- assigned to user "admin"
+- created before January 1, 2022 10:00
+- opened after January 1, 2022 10:00
+
+~~~python
+client.get_tasks(
+    sieve={
+        "assignee": "admin",
+        "created": {
+            "$lt": datetime.datetime(2022, 1, 1, 10, 0) # before the specified datetime
+        },
+        "opened": {
+            "$gt": datetime.datetime(2022, 1, 1, 10, 0) #after the specified datetime
+        }
+    }, 
+    return_states=False, 
+    return_metadata=False
+)
+~~~
