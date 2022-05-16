@@ -1006,41 +1006,67 @@ class NeuvueQueue:
 ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝
 """
 
-def post_agent(
-        self,
-        seg_id: str,
-        endpoint:tuple,
-        merges: dict,
-        metadata: dict = {}
-    ):
+    def post_agent(
+            self,
+            seg_id: str,
+            nucleus_id: str,
+            endpoint:tuple,
+            merges: dict,
+            metadata: dict = {}
+        ):
+            """
+            Post a new task to the database.
+
+            Arguments:
+                root_id List(str)
+                endpoint tuple(int,int,int)
+                hash (str)
+                merges dict{str->int}
+
+            Returns:
+                dict
+
+            """
+            created = utils.date_to_ms()
+            agent_task = {
+                "active": True,
+                "seg_id": seg_id,
+                "nucleus_id": nucleus_id,
+                "endpoint": endpoint,
+                "merges": merges,
+                "metadata": metadata,
+                "created": created
+            }
+            res = self._try_request(
+                lambda: requests.post(
+                    self.url("/agents"), data=json.dumps(agent_task), headers=self._headers
+                )
+            )
+            try:
+                self._raise_for_status(res)
+            except Exception as e:
+                raise RuntimeError("Failed to post task") from e
+            return res.json()
+
+    def get_agent_job(self, agent_job_id: str) -> dict:
         """
-        Post a new task to the database.
+        Get a single agents_job by its ID. 
 
         Arguments:
-            root_id List(str)
-            endpoint tuple(int,int,int)
-            hash (str)
-            merges dict{str->int}
-
+            agent_job_id (str): The ID of the agent job to retrieve
         Returns:
             dict
 
         """
-
-        agent_task = {
-            "active": True,
-            "seg_id": seg_id,
-            "endpoint": endpoint,
-            "merges": merges,
-            "metadata": metadata
-        }
         res = self._try_request(
-            lambda: requests.post(
-                self.url("/agents"), data=json.dumps(agent_task), headers=self._headers
+            lambda: requests.get(
+                self.url(f"/agents/{agent_job_id}"), 
+                headers=self._headers
             )
         )
         try:
             self._raise_for_status(res)
         except Exception as e:
-            raise RuntimeError("Failed to post task") from e
+            raise RuntimeError(f"Unable to get agent job {agent_job_id}") from e
+
         return res.json()
