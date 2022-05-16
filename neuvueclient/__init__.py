@@ -995,6 +995,8 @@ class NeuvueQueue:
         except Exception as e:
             raise RuntimeError("Failed to post differ stack") from e
         return res.json()
+
+
 """
  █████╗  ██████╗ ███████╗███╗   ██╗████████╗███████╗
 ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝██╔════╝
@@ -1003,14 +1005,13 @@ class NeuvueQueue:
 ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   ███████║
 ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝
 """
+
 def post_agent(
         self,
-        root_id: str,
+        seg_id: str,
         endpoint:tuple,
-        hash: str,
-        bounding_box_agents: list,
-        bounding_box_membranes: list,
         merges: dict,
+        metadata: dict = {}
     ):
         """
         Post a new task to the database.
@@ -1028,12 +1029,10 @@ def post_agent(
 
         agent_task = {
             "active": True,
-            "root_id":root_id,
+            "seg_id": seg_id,
             "endpoint": endpoint,
-            "hash": hash,
-            "bounding_box_agents":bounding_box_agents,
-            "bounding_box_membranes":bounding_box_membranes,
             "merges": merges,
+            "metadata": metadata
         }
         res = self._try_request(
             lambda: requests.post(
