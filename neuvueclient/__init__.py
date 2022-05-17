@@ -231,9 +231,18 @@ class NeuvueQueue:
                 "ng_state"
             ],
             "differ_stack": [
-              "active",
-              "task_id",
-              "differ_stack"
+                "active",
+                "task_id",
+                "differ_stack"
+            ],
+            "agents": [
+                "active",
+                "endpoint",
+                "seg_id",
+                "nucleus_id",
+                "merges",
+                "metadata",
+                "created"
             ]
         }[datatype]
 
@@ -1070,3 +1079,41 @@ class NeuvueQueue:
             raise RuntimeError(f"Unable to get agent job {agent_job_id}") from e
 
         return res.json()
+
+    def get_agent_jobs(
+        self, 
+        sieve: dict = None, 
+        limit: int = None, 
+        active_default: bool = True,
+    ):
+        """
+        Get several agent job outputs.
+
+        Arguments:
+            sieve (dict): See sieve documentation.
+            limit (int: None): The maximum number of items to return.
+            active_default (bool: True): If `active` is not a key included in sieve, set it to this
+        Returns:
+            pd.DataFrame
+        """
+
+        if sieve is None:
+            sieve = {"active": active_default}
+        if "active" not in sieve:
+            sieve["active"] = active_default
+
+        try:
+            depaginated_agent_jobs = self.depaginate(
+                "agents", sieve, limit=limit
+            )
+        except Exception as e:
+            raise RuntimeError("Unable to get agent jobs") from e
+        else:
+            res = pd.DataFrame(depaginated_agent_jobs)
+
+            # If an empty response, then return an empty dataframe:
+            if len(res) == 0:
+                return pd.DataFrame([], columns=self.dtype_columns("agents"))
+
+            res.set_index("_id", inplace=True)
+            return res
