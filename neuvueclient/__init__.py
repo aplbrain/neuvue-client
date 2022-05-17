@@ -231,9 +231,18 @@ class NeuvueQueue:
                 "ng_state"
             ],
             "differ_stack": [
-              "active",
-              "task_id",
-              "differ_stack"
+                "active",
+                "task_id",
+                "differ_stack"
+            ],
+            "agents": [
+                "active",
+                "endpoint",
+                "seg_id",
+                "nucleus_id",
+                "merges",
+                "metadata",
+                "created"
             ]
         }[datatype]
 
@@ -995,3 +1004,116 @@ class NeuvueQueue:
         except Exception as e:
             raise RuntimeError("Failed to post differ stack") from e
         return res.json()
+
+
+    """
+    █████╗  ██████╗ ███████╗███╗   ██╗████████╗███████╗
+    ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝██╔════╝
+    ███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   ███████╗
+    ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   ╚════██║
+    ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   ███████║
+    ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝
+    """
+
+    def post_agent(
+            self,
+            seg_id: str,
+            nucleus_id: str,
+            endpoint:tuple,
+            merges: dict,
+            metadata: dict = {}
+        ):
+            """
+            Post a new task to the database.
+
+            Arguments:
+                root_id List(str)
+                endpoint tuple(int,int,int)
+                hash (str)
+                merges dict{str->int}
+
+            Returns:
+                dict
+
+            """
+            created = utils.date_to_ms()
+            agent_task = {
+                "active": True,
+                "seg_id": seg_id,
+                "nucleus_id": nucleus_id,
+                "endpoint": endpoint,
+                "merges": merges,
+                "metadata": metadata,
+                "created": created
+            }
+            res = self._try_request(
+                lambda: requests.post(
+                    self.url("/agents"), data=json.dumps(agent_task), headers=self._headers
+                )
+            )
+            try:
+                self._raise_for_status(res)
+            except Exception as e:
+                raise RuntimeError("Failed to post task") from e
+            return res.json()
+
+    def get_agent_job(self, agent_job_id: str) -> dict:
+        """
+        Get a single agents_job by its ID. 
+
+        Arguments:
+            agent_job_id (str): The ID of the agent job to retrieve
+        Returns:
+            dict
+
+        """
+        res = self._try_request(
+            lambda: requests.get(
+                self.url(f"/agents/{agent_job_id}"), 
+                headers=self._headers
+            )
+        )
+        try:
+            self._raise_for_status(res)
+        except Exception as e:
+            raise RuntimeError(f"Unable to get agent job {agent_job_id}") from e
+
+        return res.json()
+
+    def get_agent_jobs(
+        self, 
+        sieve: dict = None, 
+        limit: int = None, 
+        active_default: bool = True,
+    ):
+        """
+        Get several agent job outputs.
+
+        Arguments:
+            sieve (dict): See sieve documentation.
+            limit (int: None): The maximum number of items to return.
+            active_default (bool: True): If `active` is not a key included in sieve, set it to this
+        Returns:
+            pd.DataFrame
+        """
+
+        if sieve is None:
+            sieve = {"active": active_default}
+        if "active" not in sieve:
+            sieve["active"] = active_default
+
+        try:
+            depaginated_agent_jobs = self.depaginate(
+                "agents", sieve, limit=limit
+            )
+        except Exception as e:
+            raise RuntimeError("Unable to get agent jobs") from e
+        else:
+            res = pd.DataFrame(depaginated_agent_jobs)
+
+            # If an empty response, then return an empty dataframe:
+            if len(res) == 0:
+                return pd.DataFrame([], columns=self.dtype_columns("agents"))
+
+            res.set_index("_id", inplace=True)
+            return res
