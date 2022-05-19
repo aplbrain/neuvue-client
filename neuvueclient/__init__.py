@@ -1117,3 +1117,25 @@ class NeuvueQueue:
 
             res.set_index("_id", inplace=True)
             return res
+
+    def delete_agent(self, agent_job_id: str) -> str:
+        """
+        Delete a single task.
+
+        Arguments:
+            task_id (str): The ID of the task to delete
+
+        Returns:
+            dict
+
+        """
+        res = self._try_request(
+            lambda: requests.delete(
+                self.url(f"/agents/{agent_job_id}"), headers=self._headers
+            )
+        )
+        try:
+            self._raise_for_status(res)
+        except Exception as e:
+            raise RuntimeError(f"Unable to delete task {agent_job_id}") from e
+        return agent_job_id
