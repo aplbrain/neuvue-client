@@ -287,6 +287,7 @@ class NeuvueQueue:
         **kwargs
     ):
 
+        # Get page size if user set it, otherwise set to 500
         pageSize = kwargs.get("pageSize", 500)
 
         params = {
@@ -302,7 +303,6 @@ class NeuvueQueue:
                 self.url(datatype), headers=self._headers, params=params
             )
         )
-        print(res)
         try:
             self._raise_for_status(res)
         except Exception as e:
