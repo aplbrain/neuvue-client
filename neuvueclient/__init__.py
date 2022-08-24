@@ -30,12 +30,10 @@ limitations under the License.
 
 import http
 import ast
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List
 
-import time
 import datetime
 import json
-import warnings
 import configparser
 import os
 
@@ -261,13 +259,14 @@ class NeuvueQueue:
         select: List[str] = None,
         sort: List[str] = None,
         limit: int = None,
+        **kwargs
     ) -> list:
         depaginated: list = []
         page = 0
         data_remaining = True
         while data_remaining:
             new = self._get_data_by_page(
-                datatype, sieve, page, populate=populate, select=select, sort=sort
+                datatype, sieve, page, populate=populate, select=select, sort=sort, **kwargs
             )
             page += 1
             if not new:
@@ -285,19 +284,25 @@ class NeuvueQueue:
         populate: List[str] = None,
         select: List[str] = None,
         sort: List[str] = None,
+        **kwargs
     ):
+
+        pageSize = kwargs.get("pageSize", 500)
+
         params = {
             "p": page,
             "q": json.dumps(sieve),
             "populate": ",".join(populate) if populate else None,
             "select": ",".join(select) if select else None,
             "sort": ",".join(sort) if sort else None,
+            "pageSize": pageSize
         }
         res = self._try_request(
             lambda: requests.get(
                 self.url(datatype), headers=self._headers, params=params
             )
         )
+        print(res)
         try:
             self._raise_for_status(res)
         except Exception as e:
@@ -355,6 +360,7 @@ class NeuvueQueue:
         sieve: dict = None,
         limit: int = None,
         active_default: bool = True,
+        **kwargs
     ):
         """
         Get a list of points.
@@ -363,6 +369,7 @@ class NeuvueQueue:
             sieve (dict): See sieve documentation.
             limit (int: None): The maximum number of items to return.
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
+            pageSize (int: 500): Number of entries to return per page
 
         Returns:
             pd.DataFrame
@@ -375,7 +382,7 @@ class NeuvueQueue:
 
         try:
             depaginated_points = self.depaginate(
-                "points", sieve, limit=limit
+                "points", sieve, limit=limit, **kwargs
             )
         except Exception as e:
             raise RuntimeError("Failed to get points") from e
@@ -571,6 +578,7 @@ class NeuvueQueue:
             return_states (bool): whether to populate tasks' ng states
             return_metadata (bool): whether to populate tasks' metadata
             convert_states_to_json (bool): whether to convert ng_states to json strings
+            pageSize (int: 500): Number of entries to return per page
         Returns:
             pd.DataFrame
 
@@ -596,7 +604,7 @@ class NeuvueQueue:
             select.remove('metadata')
 
         try:
-            depaginated_tasks = self.depaginate("tasks", sieve, select=select, populate=populate, limit=limit)
+            depaginated_tasks = self.depaginate("tasks", sieve, select=select, populate=populate, limit=limit, **kwargs)
         except Exception as e:
             raise RuntimeError("Unable to get tasks") from e
         else:
@@ -915,6 +923,7 @@ class NeuvueQueue:
         sieve: dict = None, 
         limit: int = None, 
         active_default: bool = True,
+        **kwargs
     ):
         """
         Get all differ stacks.
@@ -923,6 +932,7 @@ class NeuvueQueue:
             sieve (dict): See sieve documentation.
             limit (int: None): The maximum number of items to return.
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
+            pageSize (int: 500): Number of entries to return per page
         Returns:
             pd.DataFrame
         """
@@ -934,7 +944,7 @@ class NeuvueQueue:
 
         try:
             depaginated_differ_stacks = self.depaginate(
-                "differstacks", sieve, limit=limit
+                "differstacks", sieve, limit=limit, **kwargs
             )
         except Exception as e:
             raise RuntimeError("Unable to get differ stacks") from e
@@ -1085,6 +1095,7 @@ class NeuvueQueue:
         sieve: dict = None, 
         limit: int = None, 
         active_default: bool = True,
+        **kwargs
     ):
         """
         Get several agent job outputs.
@@ -1093,6 +1104,7 @@ class NeuvueQueue:
             sieve (dict): See sieve documentation.
             limit (int: None): The maximum number of items to return.
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
+            pageSize (int: 500): Number of entries to return per page
         Returns:
             pd.DataFrame
         """
@@ -1104,7 +1116,7 @@ class NeuvueQueue:
 
         try:
             depaginated_agent_jobs = self.depaginate(
-                "agents", sieve, limit=limit
+                "agents", sieve, limit=limit, **kwargs
             )
         except Exception as e:
             raise RuntimeError("Unable to get agent jobs") from e
