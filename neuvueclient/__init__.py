@@ -561,8 +561,6 @@ class NeuvueQueue:
         limit: int = None, 
         active_default: bool = True,
         populate_points: bool = False,
-        return_states: bool = True,
-        return_metadata: bool = True,
         convert_states_to_json: bool = True,
         **kwargs
     ):
@@ -575,8 +573,6 @@ class NeuvueQueue:
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
             populate_points (bool): Whether to populate the tasks' point ids with their corresponding point object.
             sort (str): attribute to sort by, default is priority 
-            return_states (bool): whether to populate tasks' ng states
-            return_metadata (bool): whether to populate tasks' metadata
             convert_states_to_json (bool): whether to convert ng_states to json strings
             pageSize (int: 500): Number of entries to return per page
         Returns:
@@ -597,14 +593,8 @@ class NeuvueQueue:
                     sieve[key][query] = round(sieve[key][query].timestamp()*1000)
         
         populate = ["points"] if populate_points else None
-        select = kwargs.get('select', self.dtype_columns("task"))
-        if not return_states:
-            select.remove('ng_state')
-        if not return_metadata:
-            select.remove('metadata')
-
         try:
-            depaginated_tasks = self.depaginate("tasks", sieve, select=select, populate=populate, limit=limit, **kwargs)
+            depaginated_tasks = self.depaginate("tasks", sieve, populate=populate, limit=limit, **kwargs)
         except Exception as e:
             raise RuntimeError("Unable to get tasks") from e
         else:
@@ -622,7 +612,7 @@ class NeuvueQueue:
                 res.closed = pd.to_datetime(res.closed, unit="ms")
 
             # Convert states to JSON if they are in URL format 
-            if convert_states_to_json and return_states and 'ng_state' in res.columns:
+            if convert_states_to_json and 'ng_state' in res.columns:
                 
                 def _convert_state(x):
                     try:
