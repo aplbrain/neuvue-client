@@ -150,9 +150,8 @@ Get a list of tasks.
 > - **active_default** (`bool`: `True`): If `active` is not a key included in sieve, set it to this
 > - **populate_points** (`bool`): Whether to populate the tasks' point ids with their corresponding point object.
 > - **sort** (`str`): attribute to sort by, default is priority 
-> - **return_states** (`bool`): whether to populate tasks' ng states
-> - **return_metadata** (`bool`): whether to populate tasks' metadata
 > - **convert_states_to_json** (`bool`): whether to convert ng_states to json strings
+> - **kwargs** (`dict`): select, pageSize are some of the kwargs that can be used here.
 ### Returns
     pd.DataFrame
 ### Sieving Examples
@@ -166,9 +165,7 @@ client = NeuvueQueue("http://localhost:9005")
 
 ~~~python
 client.get_tasks(
-    sieve={"assignee":"admin"},
-    return_states=False, 
-    return_metadata=False
+    sieve={"assignee":"admin"}
 )
 ~~~
 
@@ -183,9 +180,7 @@ client.get_tasks(
             "$lt": datetime.datetime(2022, 2, 1, 12, 0), # before the specified datetime
             "$gt": datetime.datetime(2022, 1, 1, 12, 0) # after the specified datetime
         }
-    }, 
-    return_states=False, 
-    return_metadata=False
+    }
 )
 ~~~
 
@@ -207,8 +202,8 @@ client.get_tasks(
         "opened": {
             "$gt": datetime.datetime(2022, 1, 1, 10, 0) #after the specified datetime
         }
-    }, 
-    return_states=False, 
-    return_metadata=False
+    },
+    select=['id'],
+    pageSize=1000
 )
 ~~~

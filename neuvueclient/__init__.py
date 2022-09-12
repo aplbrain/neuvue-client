@@ -30,12 +30,10 @@ limitations under the License.
 
 import http
 import ast
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List
 
-import time
 import datetime
 import json
-import warnings
 import configparser
 import os
 
@@ -261,13 +259,14 @@ class NeuvueQueue:
         select: List[str] = None,
         sort: List[str] = None,
         limit: int = None,
+        **kwargs
     ) -> list:
         depaginated: list = []
         page = 0
         data_remaining = True
         while data_remaining:
             new = self._get_data_by_page(
-                datatype, sieve, page, populate=populate, select=select, sort=sort
+                datatype, sieve, page, populate=populate, select=select, sort=sort, **kwargs
             )
             page += 1
             if not new:
@@ -285,13 +284,19 @@ class NeuvueQueue:
         populate: List[str] = None,
         select: List[str] = None,
         sort: List[str] = None,
+        **kwargs
     ):
+
+        # Get page size if user set it, otherwise set to 500
+        pageSize = kwargs.get("pageSize", 500)
+
         params = {
             "p": page,
             "q": json.dumps(sieve),
             "populate": ",".join(populate) if populate else None,
             "select": ",".join(select) if select else None,
             "sort": ",".join(sort) if sort else None,
+            "pageSize": pageSize
         }
         res = self._try_request(
             lambda: requests.get(
@@ -355,6 +360,7 @@ class NeuvueQueue:
         sieve: dict = None,
         limit: int = None,
         active_default: bool = True,
+        **kwargs
     ):
         """
         Get a list of points.
@@ -363,6 +369,7 @@ class NeuvueQueue:
             sieve (dict): See sieve documentation.
             limit (int: None): The maximum number of items to return.
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
+            pageSize (int: 500): Number of entries to return per page
 
         Returns:
             pd.DataFrame
@@ -375,7 +382,7 @@ class NeuvueQueue:
 
         try:
             depaginated_points = self.depaginate(
-                "points", sieve, limit=limit
+                "points", sieve, limit=limit, **kwargs
             )
         except Exception as e:
             raise RuntimeError("Failed to get points") from e
@@ -554,8 +561,6 @@ class NeuvueQueue:
         limit: int = None, 
         active_default: bool = True,
         populate_points: bool = False,
-        return_states: bool = True,
-        return_metadata: bool = True,
         convert_states_to_json: bool = True,
         **kwargs
     ):
@@ -568,9 +573,8 @@ class NeuvueQueue:
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
             populate_points (bool): Whether to populate the tasks' point ids with their corresponding point object.
             sort (str): attribute to sort by, default is priority 
-            return_states (bool): whether to populate tasks' ng states
-            return_metadata (bool): whether to populate tasks' metadata
             convert_states_to_json (bool): whether to convert ng_states to json strings
+            pageSize (int: 500): Number of entries to return per page
         Returns:
             pd.DataFrame
 
@@ -589,14 +593,8 @@ class NeuvueQueue:
                     sieve[key][query] = round(sieve[key][query].timestamp()*1000)
         
         populate = ["points"] if populate_points else None
-        select = kwargs.get('select', self.dtype_columns("task"))
-        if not return_states:
-            select.remove('ng_state')
-        if not return_metadata:
-            select.remove('metadata')
-
         try:
-            depaginated_tasks = self.depaginate("tasks", sieve, select=select, populate=populate, limit=limit)
+            depaginated_tasks = self.depaginate("tasks", sieve, populate=populate, limit=limit, **kwargs)
         except Exception as e:
             raise RuntimeError("Unable to get tasks") from e
         else:
@@ -614,7 +612,7 @@ class NeuvueQueue:
                 res.closed = pd.to_datetime(res.closed, unit="ms")
 
             # Convert states to JSON if they are in URL format 
-            if convert_states_to_json and return_states and 'ng_state' in res.columns:
+            if convert_states_to_json and 'ng_state' in res.columns:
                 
                 def _convert_state(x):
                     try:
@@ -915,6 +913,7 @@ class NeuvueQueue:
         sieve: dict = None, 
         limit: int = None, 
         active_default: bool = True,
+        **kwargs
     ):
         """
         Get all differ stacks.
@@ -923,6 +922,7 @@ class NeuvueQueue:
             sieve (dict): See sieve documentation.
             limit (int: None): The maximum number of items to return.
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
+            pageSize (int: 500): Number of entries to return per page
         Returns:
             pd.DataFrame
         """
@@ -934,7 +934,7 @@ class NeuvueQueue:
 
         try:
             depaginated_differ_stacks = self.depaginate(
-                "differstacks", sieve, limit=limit
+                "differstacks", sieve, limit=limit, **kwargs
             )
         except Exception as e:
             raise RuntimeError("Unable to get differ stacks") from e
@@ -1085,6 +1085,7 @@ class NeuvueQueue:
         sieve: dict = None, 
         limit: int = None, 
         active_default: bool = True,
+        **kwargs
     ):
         """
         Get several agent job outputs.
@@ -1093,6 +1094,7 @@ class NeuvueQueue:
             sieve (dict): See sieve documentation.
             limit (int: None): The maximum number of items to return.
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
+            pageSize (int: 500): Number of entries to return per page
         Returns:
             pd.DataFrame
         """
@@ -1104,7 +1106,7 @@ class NeuvueQueue:
 
         try:
             depaginated_agent_jobs = self.depaginate(
-                "agents", sieve, limit=limit
+                "agents", sieve, limit=limit, **kwargs
             )
         except Exception as e:
             raise RuntimeError("Unable to get agent jobs") from e
