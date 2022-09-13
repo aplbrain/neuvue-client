@@ -33,8 +33,6 @@ setup(
     url="https://github.com/aplbrain/neuvueclient/tarball/" + VERSION,
     packages=find_packages(),
     install_requires=[
-        "matplotlib",
-        "networkx",
         "pandas",
         "requests",
         "typing",
