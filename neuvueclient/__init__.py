@@ -207,7 +207,8 @@ class NeuvueQueue:
                 "metadata",
                 "namespace",
                 "submitted",
-                "type"
+                "type",
+                "agents_status"
             ],
             "task": [
                 "__v",
@@ -240,7 +241,8 @@ class NeuvueQueue:
                 "nucleus_id",
                 "merges",
                 "metadata",
-                "created"
+                "created",
+                "namespace"
             ]
         }[datatype]
 
@@ -419,6 +421,7 @@ class NeuvueQueue:
             resolution (int = 0)
             metadata (dict = None)
             validate (bool = True)
+
 
         Returns:
             dict: Point, as inserted
@@ -1021,7 +1024,8 @@ class NeuvueQueue:
             nucleus_id: str,
             endpoint:tuple,
             merges: dict,
-            metadata: dict = {}
+            metadata: dict = {},
+            namespace: str = None
         ):
             """
             Post a new task to the database.
@@ -1046,6 +1050,10 @@ class NeuvueQueue:
                 "metadata": metadata,
                 "created": created
             }
+
+            if namespace:
+                agent_task['namespace'] = namespace 
+                
             res = self._try_request(
                 lambda: requests.post(
                     self.url("/agents"), data=json.dumps(agent_task), headers=self._headers
