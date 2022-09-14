@@ -454,6 +454,45 @@ class NeuvueQueue:
             raise RuntimeError("Unable to post point") from e
         return res.json()
 
+    def patch_point(self, point_id: str, **kwargs):
+        """
+        Patch a single point. Only agents_status is currently patchable.
+        
+        Arguments:
+            point_id (str): The ID of the point to patch
+            kwargs (dict or str or int): The fields to modify. Only supports 
+                - agents_status
+
+        Returns:
+            JSON
+        """
+        if not kwargs:
+            print("WARNING: No valid kwargs provided in patch_task().")
+            return 
+
+        valid_kwargs = ['agents_status']
+        for key, value in kwargs.items():
+            if key not in valid_kwargs:
+                print("WARNING: Key {key} does not exist in point attributes.")
+            # Append metadata to existing entries
+
+            stri = f"/points/{point_id}/{key}"
+            
+            # Include flag for status updates, if needed. 
+            data = {key:value}
+
+            res = self._try_request( 
+                lambda: requests.patch(
+                    self.url(stri), 
+                    data=json.dumps(data),
+                    headers=self._headers)
+            )
+            try:
+                self._raise_for_status(res)
+            except Exception as e:
+                raise RuntimeError(f"Unable to patch point {point_id}") from e
+
+
     """
     ████████╗ █████╗ ███████╗██╗  ██╗███████╗
     ╚══██╔══╝██╔══██╗██╔════╝██║ ██╔╝██╔════╝
