@@ -440,7 +440,7 @@ class NeuvueQueue:
             "resolution": resolution,
             "metadata": metadata,
             "created": created,
-            "__v": 0,
+            "__v": 1,
         }
 
         res = self._try_request(
