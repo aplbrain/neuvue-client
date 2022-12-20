@@ -603,6 +603,7 @@ class NeuvueQueue:
         limit: int = None, 
         active_default: bool = True,
         populate_points: bool = False,
+        sort: str = '-priority',
         convert_states_to_json: bool = True,
         **kwargs
     ):
@@ -636,7 +637,7 @@ class NeuvueQueue:
         
         populate = ["points"] if populate_points else None
         try:
-            depaginated_tasks = self.depaginate("tasks", sieve, populate=populate, limit=limit, **kwargs)
+            depaginated_tasks = self.depaginate("tasks", sieve, populate=populate, limit=limit, sort=[sort], **kwargs)
         except Exception as e:
             raise RuntimeError("Unable to get tasks") from e
         else:
