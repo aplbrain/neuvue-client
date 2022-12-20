@@ -603,7 +603,7 @@ class NeuvueQueue:
         limit: int = None, 
         active_default: bool = True,
         populate_points: bool = False,
-        sort: str = '-priority',
+        sort: str = '',
         convert_states_to_json: bool = True,
         **kwargs
     ):
@@ -615,7 +615,8 @@ class NeuvueQueue:
             limit (int: None): The maximum number of items to return.
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
             populate_points (bool): Whether to populate the tasks' point ids with their corresponding point object.
-            sort (str): attribute to sort by, default is priority 
+            sort (str): attribute to sort by, default is task_id. Add `-` to the beginning of the attribute name to
+                        sort in descending order.
             convert_states_to_json (bool): whether to convert ng_states to json strings
             pageSize (int: 500): Number of entries to return per page
         Returns:
