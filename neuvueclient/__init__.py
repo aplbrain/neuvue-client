@@ -361,6 +361,7 @@ class NeuvueQueue:
         self,
         sieve: dict = None,
         limit: int = None,
+        sort: str = "",
         active_default: bool = True,
         **kwargs
     ):
@@ -370,6 +371,8 @@ class NeuvueQueue:
         Arguments:
             sieve (dict): See sieve documentation.
             limit (int: None): The maximum number of items to return.
+            sort (str): attribute to sort by, default is _id. Add `-` to the beginning of the attribute name to
+                        sort in descending order.
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
             pageSize (int: 500): Number of entries to return per page
 
@@ -384,7 +387,7 @@ class NeuvueQueue:
 
         try:
             depaginated_points = self.depaginate(
-                "points", sieve, limit=limit, **kwargs
+                "points", sieve, limit=limit, sort=[sort], **kwargs
             )
         except Exception as e:
             raise RuntimeError("Failed to get points") from e
@@ -955,7 +958,8 @@ class NeuvueQueue:
     def get_differ_stacks(
         self, 
         sieve: dict = None, 
-        limit: int = None, 
+        limit: int = None,
+        sort: str = "",
         active_default: bool = True,
         **kwargs
     ):
@@ -965,6 +969,8 @@ class NeuvueQueue:
         Arguments:
             sieve (dict): See sieve documentation.
             limit (int: None): The maximum number of items to return.
+            sort (str): attribute to sort by, default is _id. Add `-` to the beginning of the attribute name to
+                        sort in descending order.
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
             pageSize (int: 500): Number of entries to return per page
         Returns:
@@ -978,7 +984,7 @@ class NeuvueQueue:
 
         try:
             depaginated_differ_stacks = self.depaginate(
-                "differstacks", sieve, limit=limit, **kwargs
+                "differstacks", sieve, limit=limit, sort=[sort], **kwargs
             )
         except Exception as e:
             raise RuntimeError("Unable to get differ stacks") from e
@@ -1133,6 +1139,7 @@ class NeuvueQueue:
         self, 
         sieve: dict = None, 
         limit: int = None, 
+        sort: str = "",
         active_default: bool = True,
         **kwargs
     ):
@@ -1142,6 +1149,8 @@ class NeuvueQueue:
         Arguments:
             sieve (dict): See sieve documentation.
             limit (int: None): The maximum number of items to return.
+            sort (str): attribute to sort by, default is _id. Add `-` to the beginning of the attribute name to
+                        sort in descending order.
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
             pageSize (int: 500): Number of entries to return per page
         Returns:
@@ -1155,7 +1164,7 @@ class NeuvueQueue:
 
         try:
             depaginated_agent_jobs = self.depaginate(
-                "agents", sieve, limit=limit, **kwargs
+                "agents", sieve, limit=limit, sort=[sort], **kwargs
             )
         except Exception as e:
             raise RuntimeError("Unable to get agent jobs") from e
