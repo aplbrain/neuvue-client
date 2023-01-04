@@ -37,5 +37,7 @@ C.get_tasks(sieve={"namespace": "split"})
 
 | Object   | POST | GET | LIST | DELETE | PATCH |
 |----------|------|-----|------|--------|-------|
-| Point    | ✅ | ✅ | ✅ | ✅ | ⛔ 
+| Point    | ✅ | ✅ | ✅ | ✅ | ✅ 
 | Task     | ✅ | ✅ | ✅ | ✅ | ✅
+| DifferStack     | ✅ | ✅ | ✅ | ✅ | ⛔
+| AgentsJob     | ✅ | ✅ | ✅ | ✅ | ⛔
