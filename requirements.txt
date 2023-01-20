@@ -7,3 +7,4 @@ backoff
 black
 mypy
 pylint
+joblib

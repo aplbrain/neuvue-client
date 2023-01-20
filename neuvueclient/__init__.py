@@ -36,6 +36,7 @@ import datetime
 import json
 import configparser
 import os
+import joblib
 
 import pandas as pd
 import requests
@@ -263,19 +264,34 @@ class NeuvueQueue:
         limit: int = None,
         **kwargs
     ) -> list:
+
+        parallelize = kwargs.get('parallelize', True)
+        if parallelize == True:
+            workers = joblib.cpu_count()
+        elif parallelize == False:
+            workers = 1
+        else:
+            # User designated an integer number of workers
+            workers = parallelize
+
         depaginated: list = []
         page = 0
         data_remaining = True
-        while data_remaining:
-            new = self._get_data_by_page(
-                datatype, sieve, page, populate=populate, select=select, sort=sort, **kwargs
-            )
-            page += 1
-            if not new:
-                data_remaining = False
-            depaginated += new
-            if limit and len(depaginated) >= limit:
-                return depaginated[:limit]
+
+        with joblib.Parallel(n_jobs=workers) as parallel:
+            while data_remaining:
+                new = parallel(joblib.delayed(self._get_data_by_page)(
+                    datatype, sieve, curr_page, populate=populate, select=select, sort=sort, **kwargs
+                ) for curr_page in range(page, page+workers))
+                page += workers
+                for elem in new:
+                    if not elem:
+                        data_remaining = False
+                        break
+                    else:
+                        depaginated.extend(elem)
+                if limit and len(depaginated) >= limit:
+                    return depaginated[:limit]
         return depaginated
 
     def _get_data_by_page(
@@ -375,6 +391,7 @@ class NeuvueQueue:
                         sort in descending order.
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
             pageSize (int: 500): Number of entries to return per page
+            parallelize (int or bool: True): number of parallel workers to use when fetching. True = num cpus on machine
 
         Returns:
             pd.DataFrame
@@ -622,6 +639,7 @@ class NeuvueQueue:
                         sort in descending order.
             convert_states_to_json (bool): whether to convert ng_states to json strings
             pageSize (int: 500): Number of entries to return per page
+            parallelize (int or bool: True): number of parallel workers to use when fetching. True = num cpus on machine
         Returns:
             pd.DataFrame
 
@@ -973,6 +991,7 @@ class NeuvueQueue:
                         sort in descending order.
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
             pageSize (int: 500): Number of entries to return per page
+            parallelize (int or bool: True): number of parallel workers to use when fetching. True = num cpus on machine
         Returns:
             pd.DataFrame
         """
@@ -1153,6 +1172,7 @@ class NeuvueQueue:
                         sort in descending order.
             active_default (bool: True): If `active` is not a key included in sieve, set it to this
             pageSize (int: 500): Number of entries to return per page
+            parallelize (int or bool: True): number of parallel workers to use when fetching. True = num cpus on machine
         Returns:
             pd.DataFrame
         """
