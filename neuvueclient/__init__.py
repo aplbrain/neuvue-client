@@ -290,7 +290,7 @@ class NeuvueQueue:
     ):
 
         # Get page size if user set it, otherwise set to 500
-        pageSize = kwargs.get("pageSize", 500)
+        pageSize = kwargs.get("pageSize", 15000)
 
         params = {
             "p": page,
