@@ -683,7 +683,8 @@ class NeuvueQueue:
         seg_id: str = None,
         ng_state: str = None,
         version: int = 1,
-        post_state: bool = True
+        post_state: bool = True,
+        **kwargs
     ):
         """
         Post a new task to the database.
@@ -945,6 +946,29 @@ class NeuvueQueue:
                 self._raise_for_status(res)
             except Exception as e:
                 raise RuntimeError(f"Unable to patch task {task_id}") from e
+
+    def copy_task(self, task_id:str, **kwargs):
+        """Copy a task based on its original task ID and replaces any attributes through 
+        kwargs that are subsequently passed to post_task(). 
+        
+        For database reasons, you cannot copy a task from one namespace to another. 
+
+        Args:
+            task_id (str): task ID to be copied
+
+        Raises:
+            ValueError: raised when namespace is included in kwargs
+
+        Returns:
+            dict: Post response
+        """
+        if kwargs.get('namespace'):
+            raise ValueError("Cannot copy a task and replace its namespace.")
+        
+        task = self.get_task(task_id)
+        task.update(kwargs)
+        return self.post_task(**task, post_state=False)
+
 
     '''
     ██████╗ ██╗███████╗███████╗███████╗██████╗     ███████╗████████╗ █████╗  ██████╗██╗  ██╗███████╗
