@@ -139,3 +139,21 @@ def get_from_state_server(url: str, json_state_server_token):
     
     # TODO: Make sure its JSON String
     return resp.text.strip()
+
+def create_new_provenance(task, copy=False):
+    if copy:
+        return [{"assignee": task["assignee"], "status": task["status"], "copiedBy": task["author"], "copiedAt": task["created"], "copiedFrom": task["_id"]}]
+    else:
+        return [{"assignee": task["assignee"], "status": task["status"], "createdBy": task["author"], "createdAt": task["created"]}]
+
+def update_provenance(task, author, kwargs):
+    if 'provenance' not in task['metadata']:
+        new_provenance = create_new_provenance(task)
+    else:
+        new_provenance = task['metadata']['provenance']
+    # Should always have changedBy and changedAt
+    new_provenance_entry = {"changedBy": author, "changedAt": date_to_ms()}
+    for key, value in kwargs.items():
+        new_provenance_entry[key] = value
+    new_provenance.append(new_provenance_entry)
+    return new_provenance
