@@ -888,7 +888,7 @@ class NeuvueQueue:
             raise RuntimeError("Failed to post task") from e
         return res.json()
 
-    def patch_task(self, task_id: str, author:str, overwrite_opened: bool = True, **kwargs):
+    def patch_task(self, task_id: str, author: str = None, overwrite_opened: bool = True, **kwargs):
         """
         Patch a single task. Iterates through each argument passed through kwargs and patches each.
         
@@ -921,6 +921,10 @@ class NeuvueQueue:
 
         valid_kwargs = self.dtype_columns("task")
         task = self.get_task(task_id)
+        
+        if not author:
+            author = task["author"]
+            print("WARNING: No author has been designated in patch_task() kwargs. Original author of task will be used to record this change.")
 
         # If status or assignee is designated, patch metadata to include provenance too
         if 'assignee' in kwargs.keys() or 'status' in kwargs.keys():
@@ -957,7 +961,7 @@ class NeuvueQueue:
             except Exception as e:
                 raise RuntimeError(f"Unable to patch task {task_id}") from e
 
-    def copy_task(self, task_id:str, author:str, **kwargs):
+    def copy_task(self, task_id:str, author:str = None, **kwargs):
         """Copy a task based on its original task ID and replaces any attributes through 
         kwargs that are subsequently passed to post_task(). 
         
@@ -977,7 +981,10 @@ class NeuvueQueue:
         
         task = self.get_task(task_id)
         task.update(kwargs)
-        task.update({"author": author})
+        if author:
+            task.update({"author": author})
+        else:
+            print("WARNING: No author has been designated in copy_task() kwargs. Original author of task will be recorded in the new task.")
         
         # Create copy provenance
         task['metadata']['provenance'] = utils.create_new_provenance(task, copy=True)
