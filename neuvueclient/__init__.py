@@ -921,13 +921,13 @@ class NeuvueQueue:
 
         valid_kwargs = self.dtype_columns("task")
         task = self.get_task(task_id)
-        
-        if not author:
-            author = task["author"]
-            print("WARNING: No author has been designated in patch_task() kwargs. Original author of task will be used to record this change.")
 
         # If status or assignee is designated, patch metadata to include provenance too
         if 'assignee' in kwargs.keys() or 'status' in kwargs.keys():
+            if not author:
+                author = task["author"]
+                print("WARNING: No author has been designated in patch_task() kwargs. Original author of task will be used to record this change.")
+
             if 'metadata' in kwargs.keys():
                 kwargs['metadata']['provenance'] = utils.update_provenance(task, author, {k: v for k, v in kwargs.items() if k in ['assignee', 'status']})
             else:
@@ -984,7 +984,7 @@ class NeuvueQueue:
         if author:
             task.update({"author": author})
         else:
-            print("WARNING: No author has been designated in copy_task() kwargs. Original author of task will be recorded in the new task.")
+            print("WARNING: No author has been designated in copy_task() kwargs. Original author of task will be used to record this change.")
         
         # Create copy provenance
         task['metadata']['provenance'] = utils.create_new_provenance(task, copy=True)
