@@ -888,13 +888,14 @@ class NeuvueQueue:
             raise RuntimeError("Failed to post task") from e
         return res.json()
 
-    def patch_task(self, task_id: str, overwrite_opened: bool = True, **kwargs):
+    def patch_task(self, task_id: str, author: str = None, overwrite_opened: bool = True, **kwargs):
         """
         Patch a single task. Iterates through each argument passed through kwargs and patches each.
         
-        Exmaple:
+        Example:
         > patch_task(
             task_id, 
+            author,
             instructions = {"prompt": 'do a good job'}, 
             status='pending', 
             priority='100'
@@ -919,12 +920,25 @@ class NeuvueQueue:
             return 
 
         valid_kwargs = self.dtype_columns("task")
+        task = self.get_task(task_id)
+
+        # If status or assignee is designated, patch metadata to include provenance too
+        if 'assignee' in kwargs.keys() or 'status' in kwargs.keys():
+            if not author:
+                author = task["author"]
+                print("WARNING: No author has been designated in patch_task() kwargs. Original author of task will be used to record this change.")
+
+            if 'metadata' in kwargs.keys():
+                kwargs['metadata']['provenance'] = utils.update_provenance(task, author, {k: v for k, v in kwargs.items() if k in ['assignee', 'status']})
+            else:
+                kwargs['metadata'] = {"provenance": utils.update_provenance(task, author, {k: v for k, v in kwargs.items() if k in ['assignee', 'status']})}
+
         for key, value in kwargs.items():
             if key not in valid_kwargs:
                 print("WARNING: Key {key} does not exist in task attributes.")
             # Append metadata to existing entries
             if key == 'metadata':
-                old_metadata = self.get_task(task_id)['metadata']
+                old_metadata = task['metadata']
                 old_metadata.update(value)
                 value = old_metadata
 
@@ -947,7 +961,7 @@ class NeuvueQueue:
             except Exception as e:
                 raise RuntimeError(f"Unable to patch task {task_id}") from e
 
-    def copy_task(self, task_id:str, **kwargs):
+    def copy_task(self, task_id:str, author:str = None, **kwargs):
         """Copy a task based on its original task ID and replaces any attributes through 
         kwargs that are subsequently passed to post_task(). 
         
@@ -955,7 +969,7 @@ class NeuvueQueue:
 
         Args:
             task_id (str): task ID to be copied
-
+            author (str): your username
         Raises:
             ValueError: raised when namespace is included in kwargs
 
@@ -967,6 +981,14 @@ class NeuvueQueue:
         
         task = self.get_task(task_id)
         task.update(kwargs)
+        if author:
+            task.update({"author": author})
+        else:
+            print("WARNING: No author has been designated in copy_task() kwargs. Original author of task will be used to record this change.")
+        
+        # Create copy provenance
+        task['metadata']['provenance'] = utils.create_new_provenance(task, copy=True)
+
         return self.post_task(**task, post_state=False)
 
 
