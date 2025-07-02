@@ -94,11 +94,14 @@ def get_caveclient_token():
             return json.load(f).get("token")
     
 @backoff.on_exception(backoff.expo, Exception, max_tries=3)
-def post_to_state_server(state: str, json_state_server:str, json_state_server_token:str): 
+def post_to_state_server(state: str, json_state_server:str, json_state_server_token:str=None, public:bool=False): 
     """Posts JSON string to state server
 
     Args:
         state (str): NG State string
+        json_state_server (str): NG State Server string
+        json_state_server_token (str): Token for NG State server (optional)
+        public (bool): boolean for public access of NG State Server (default:False)
     
     Returns:
         str: url string
@@ -106,8 +109,13 @@ def post_to_state_server(state: str, json_state_server:str, json_state_server_to
 
     headers = {
         'content-type': 'application/json',
-        'Authorization': f"Bearer {json_state_server_token}"
     }
+
+    if not public:
+        if json_state_server_token:
+            headers['Authorization'] = f"Bearer {json_state_server_token}"
+        else:
+            print(f"Unable to post private neuroglancer state to {json_state_server} without `json_state_server_token` defined")
 
     # Post! 
     resp = requests.post(json_state_server, data=state, headers=headers)
@@ -117,21 +125,32 @@ def post_to_state_server(state: str, json_state_server:str, json_state_server_to
         return
     
     # Response will contain the URL for the state you just posted
-    return str(resp.json())
+    if public:
+        return str(resp.json()['url'])
+    else:
+        return str(resp.json())
 
 @backoff.on_exception(backoff.expo, Exception, max_tries=3)
-def get_from_state_server(url: str, json_state_server_token): 
+def get_from_state_server(url:str, json_state_server_token:str=None, public:bool=False):
     """Gets JSON state string from state server
 
     Args:
         url (str): json state server link
+        json_state_server_token (str): Token for NG State server (optional)
+        public (bool): boolean for public access of NG State Server (default:False)
     Returns:
         (str): JSON String 
     """
     headers = {
         'content-type': 'application/json',
-        'Authorization': f"Bearer {json_state_server_token}"
     }
+
+    if (not public) and ("bossdb-neuvue-datalake" not in url):
+        if json_state_server_token:
+            headers['Authorization'] = f"Bearer {json_state_server_token}"
+        else:
+            print(f"Unable to get private neuroglancer state at {url} without `json_state_server_token` defined")
+
     resp = requests.get(url, headers=headers)
     if resp.status_code != 200:
         print(f"Unable to get neuroglancer state from {url}. Error code: {resp.status_code}")
